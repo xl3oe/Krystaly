@@ -1,8 +1,8 @@
 from flask import Flask, request, jsonify, send_from_directory
 import os
-import psycopg
-from psycopg.rows import dict_row
-from psycopg.pool import ConnectionPool
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from psycopg2 import pool
 from flask_cors import CORS
 
 app = Flask(__name__, static_folder='static', static_url_path='')
@@ -20,10 +20,10 @@ connection_pool = None
 def init_connection_pool():
     global connection_pool
     try:
-        connection_pool = ConnectionPool(
+        connection_pool = psycopg2.pool.SimpleConnectionPool(
+            1, 20,  # min a max připojení
             DATABASE_URL,
-            min_size=1,
-            max_size=20
+            cursor_factory=RealDictCursor
         )
         print("Connection pool vytvořen úspěšně")
     except Exception as e:
@@ -40,7 +40,7 @@ def get_db_connection():
     
     # Fallback - přímé připojení
     try:
-        return psycopg.connect(DATABASE_URL, row_factory=dict_row)
+        return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     except Exception as e:
         print(f"Chyba při přímém připojení: {e}")
         return None
