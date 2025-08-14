@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Křišťálová hra</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1350&q=80') no-repeat center center fixed;
+      background-size: cover;
+      color: white; margin: 0; padding: 0;
+    }
+    header { display: flex; justify-content: space-between; background: rgba(0,0,0,0.7); padding: 10px 20px; align-items: center; }
+    #usernameDisplay { font-weight: bold; }
+    #logoutBtn { cursor: pointer; background: crimson; border: none; color: white; padding: 5px 10px; border-radius: 4px; display: none; }
+    #authButtons button { margin-left: 10px; cursor: pointer; background: #2196F3; border: none; color: white; padding: 5px 12px; border-radius: 4px; }
+    #authForms { position: fixed; top: 50px; right: 20px; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 8px; display: none; flex-direction: column; width: 240px; }
+    #authForms form { display: flex; flex-direction: column; }
+    #authForms input { margin: 5px 0 10px 0; padding: 6px; border-radius: 4px; border: none; }
+    #authForms button { background: #4CAF50; border: none; color: white; padding: 7px; border-radius: 4px; cursor: pointer; }
+    #authForms a { color: #4CAF50; cursor: pointer; font-size: 0.9em; margin-top: 5px; text-align: center; }
+
+    main { text-align: center; margin-top: 60px; background: rgba(0,0,0,0.5); max-width: 800px; margin-left: auto; margin-right: auto; padding: 20px; border-radius: 10px; }
+    .gameBtn { margin: 10px 5px; padding: 12px 16px; font-size: 1em; border-radius: 8px; border: none; cursor: pointer; background: #007bff; color: white; transition: background-color 0.2s ease; }
+    .gameBtn:disabled { background: #444; cursor: not-allowed; }
+
+    .stats { margin-top: 20px; font-size: 1rem; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; text-align: left; }
+    .stats p { margin: 6px 0; }
+
+    /* Shop */
+    #shopToggle { margin-top: 10px; background: #9C27B0; }
+    #shop { margin-top: 15px; background: rgba(0,0,0,0.6); border-radius: 10px; padding: 12px; display: none; text-align: left; }
+    .shop-row { display: grid; grid-template-columns: 1.2fr 0.8fr 0.8fr 0.8fr auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.15); }
+    .shop-row:last-child { border-bottom: none; }
+    .muted { opacity: 0.7; font-size: 0.9em; }
+    .locked { opacity: 0.5; }
+    .req { font-size: 0.9em; }
+
+    /* Žebříček */
+    #leaderboardToggle { margin-top: 10px; background: #FF9800; }
+    #leaderboard { margin-top: 15px; background: rgba(0,0,0,0.6); border-radius: 10px; padding: 12px; display: none; text-align: left; }
+    .leaderboard-tabs { display: flex; gap: 5px; margin-bottom: 15px; flex-wrap: wrap; }
+    .tab-btn { background: #555; border: none; color: white; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.85em; }
+    .tab-btn.active { background: #FF9800; }
+    .leaderboard-list { max-height: 300px; overflow-y: auto; }
+    .leaderboard-item { display: grid; grid-template-columns: 40px 1fr auto; gap: 10px; align-items: center; padding: 6px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .leaderboard-item:last-child { border-bottom: none; }
+    .rank { font-weight: bold; color: #FFD700; }
+    .rank.first { color: #FFD700; }
+    .rank.second { color: #C0C0C0; }
+    .rank.third { color: #CD7F32; }
+    .username { font-weight: bold; }
+    .value { text-align: right; }
+    .error-message { color: #ff6b6b; text-align: center; padding: 10px; }
+    .loading-message { color: #4CAF50; text-align: center; padding: 10px; }
+  </style>
+</head>
+<body>
+<header>
+  <div id="usernameDisplay"></div>
+  <div id="authButtons">
+    <button id="showLogin">Přihlásit se</button>
+    <button id="showRegister">Registrovat</button>
+  </div>
+  <button id="logoutBtn">Odhlásit se</button>
+</header>
+
+<div id="authForms">
+  <div id="loginForm">
+    <form>
+      <input id="loginUsername" type="text" placeholder="Uživatelské jméno" required />
+      <input id="loginPassword" type="password" placeholder="Heslo" required />
+      <button type="submit">Přihlásit se</button>
+    </form>
+    <a id="toRegister">Nemáš účet? Registrovat</a>
+  </div>
+  <div id="registerForm" style="display:none;">
+    <form>
+      <input id="registerUsername" type="text" placeholder="Uživatelské jméno" required />
+      <input id="registerPassword" type="password" placeholder="Heslo" required />
+      <button type="submit">Registrovat</button>
+    </form>
+    <a id="toLogin">Máš účet? Přihlásit se</a>
+  </div>
+</div>
+
+<main>
+  <h1>Křišťálová hra</h1>
+  <p id="crystalsCount">Křišťály: 0</p>
+
+  <div class="stats">
+    <p>Autoklikery: <span id="autoclickersCount">0</span> <span class="muted">(+1/s každý)</span></p>
+    <p>Továrny: <span id="factoriesCount">0</span> <span class="muted">(+5/s každá)</span></p>
+    <p>Doly: <span id="minesCount">0</span> <span class="muted">(+50/s každý)</span></p>
+    <p>Rafinerie: <span id="refineriesCount">0</span> <span class="muted">(+200/s každá)</span></p>
+    <p>Kvantové vrtačky: <span id="quantumDrillsCount">0</span> <span class="muted">(+1000/s každá)</span></p>
+    <p>Síla kliku: <span id="clickPowerCount">1</span> <span class="muted">(+X/klik)</span></p>
+  </div>
+
+  <button id="clickBtn" class="gameBtn">Klikni na křišťál (+<span id="perClick">1</span>)</button>
+
+  <p class="muted">Současná produkce: <strong><span id="perSecond">0</span>/s</strong></p>
+
+  <button id="shopToggle" class="gameBtn">Otevřít obchod</button>
+  <div id="shop">
+    <div class="shop-row" id="row-autoclicker">
+      <div><strong>Autokliker</strong> <span class="muted">(+1/s)</span></div>
+      <div>Cena: <span id="priceAutoclickerLabel">5</span></div>
+      <div>Máš: <span id="autoclickersOwned">0</span></div>
+      <div class="req"></div>
+      <button id="buyAutoclickerBtn" class="gameBtn">Koupit</button>
+    </div>
+
+    <div class="shop-row" id="row-factory">
+      <div><strong>Továrna</strong> <span class="muted">(+5/s)</span></div>
+      <div>Cena: <span id="priceFactoryLabel">50</span></div>
+      <div>Máš: <span id="factoriesOwned">0</span></div>
+      <div class="req" id="factoryReq">Vyžaduje 10 autoklikerů</div>
+      <button id="buyFactoryBtn" class="gameBtn">Koupit</button>
+    </div>
+
+    <div class="shop-row" id="row-mine">
+      <div><strong>Důl</strong> <span class="muted">(+50/s)</span></div>
+      <div>Cena: <span id="priceMineLabel">500</span></div>
+      <div>Máš: <span id="minesOwned">0</span></div>
+      <div class="req" id="mineReq">Vyžaduje 5 továren</div>
+      <button id="buyMineBtn" class="gameBtn">Koupit</button>
+    </div>
+
+    <div class="shop-row" id="row-refinery">
+      <div><strong>Rafinerie</strong> <span class="muted">(+200/s)</span></div>
+      <div>Cena: <span id="priceRefineryLabel">5000</span></div>
+      <div>Máš: <span id="refineriesOwned">0</span></div>
+      <div class="req" id="refineryReq">Vyžaduje 3 doly</div>
+      <button id="buyRefineryBtn" class="gameBtn">Koupit</button>
+    </div>
+
+    <div class="shop-row" id="row-quantum">
+      <div><strong>Kvantová vrtačka</strong> <span class="muted">(+1000/s)</span></div>
+      <div>Cena: <span id="priceQuantumLabel">50000</span></div>
+      <div>Máš: <span id="quantumOwned">0</span></div>
+      <div class="req" id="quantumReq">Vyžaduje 2 rafinerie</div>
+      <button id="buyQuantumBtn" class="gameBtn">Koupit</button>
+    </div>
+
+    <div class="shop-row" id="row-clickpower">
+      <div><strong>Vylepšit klik</strong> <span class="muted">(+1 k síle kliku)</span></div>
+      <div>Cena: <span id="priceClickPowerLabel">20</span></div>
+      <div>Aktuálně: <span id="clickPowerOwned">1</span></div>
+      <div class="req"></div>
+      <button id="upgradeClickPowerBtn" class="gameBtn">Vylepšit</button>
+    </div>
+  </div>
+
+  <button id="leaderboardToggle" class="gameBtn">Žebříček hráčů</button>
+  <div id="leaderboard">
+    <div class="leaderboard-tabs">
+      <button class="tab-btn active" data-type="crystals">Křišťály</button>
+      <button class="tab-btn" data-type="cps">CPS</button>
+      <button class="tab-btn" data-type="clicks">Kliky</button>
+      <button class="tab-btn" data-type="buildings">Budovy</button>
+    </div>
+    <div id="leaderboard-content">
+      <div class="leaderboard-list" id="leaderboard-list"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+  let userId = null;
+  let crystals = 0;
+  let autoclickers = 0;
+  let factories = 0;
+  let mines = 0;
+  let refineries = 0;
+  let quantumDrills = 0;
+  let clickPower = 1;
+  let totalClicks = 0;
+
+  // Ceny (načítají se i z DB)
+  let priceAutoclicker = 5;
+  let priceFactory = 50;
+  let priceMine = 500;
+  let priceRefinery = 5000;
+  let priceQuantumDrill = 50000;
+  let priceClickPower = 20;
+
+  // DOM prvky
+  const crystalsCount = document.getElementById('crystalsCount');
+  const autoclickersCount = document.getElementById('autoclickersCount');
+  const factoriesCount = document.getElementById('factoriesCount');
+  const minesCount = document.getElementById('minesCount');
+  const refineriesCount = document.getElementById('refineriesCount');
+  const quantumDrillsCount = document.getElementById('quantumDrillsCount');
+  const clickPowerCount = document.getElementById('clickPowerCount');
+  const perSecondLabel = document.getElementById('perSecond');
+  const perClickLabel = document.getElementById('perClick');
+
+  // shop labels
+  const priceAutoclickerLabel = document.getElementById('priceAutoclickerLabel');
+  const priceFactoryLabel = document.getElementById('priceFactoryLabel');
+  const priceMineLabel = document.getElementById('priceMineLabel');
+  const priceRefineryLabel = document.getElementById('priceRefineryLabel');
+  const priceQuantumLabel = document.getElementById('priceQuantumLabel');
+  const priceClickPowerLabel = document.getElementById('priceClickPowerLabel');
+
+  const autoclickersOwned = document.getElementById('autoclickersOwned');
+  const factoriesOwned = document.getElementById('factoriesOwned');
+  const minesOwned = document.getElementById('minesOwned');
+  const refineriesOwned = document.getElementById('refineriesOwned');
+  const quantumOwned = document.getElementById('quantumOwned');
+  const clickPowerOwned = document.getElementById('clickPowerOwned');
+
+  // tlačítka
+  const clickBtn = document.getElementById('clickBtn');
+  const shopToggle = document.getElementById('shopToggle');
+  const shop = document.getElementById('shop');
+  const leaderboardToggle = document.getElementById('leaderboardToggle');
+  const leaderboard = document.getElementById('leaderboard');
+
+  const buyAutoclickerBtn = document.getElementById('buyAutoclickerBtn');
+  const buyFactoryBtn = document.getElementById('buyFactoryBtn');
+  const buyMineBtn = document.getElementById('buyMineBtn');
+  const buyRefineryBtn = document.getElementById('buyRefineryBtn');
+  const buyQuantumBtn = document.getElementById('buyQuantumBtn');
+  const upgradeClickPowerBtn = document.getElementById('upgradeClickPowerBtn');
+
+  const usernameDisplay = document.getElementById('usernameDisplay');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const authButtons = document.getElementById('authButtons');
+  const authForms = document.getElementById('authForms');
+  const loginForm = document.querySelector('#loginForm form');
+  const registerForm = document.querySelector('#registerForm form');
+  const toRegisterLink = document.getElementById('toRegister');
+  const toLoginLink = document.getElementById('toLogin');
+
+  function getPerSecond() {
+    return (
+      autoclickers * 1 +
+      factories * 5 +
+      mines * 50 +
+      refineries * 200 +
+      quantumDrills * 1000
+    );
+  }
+
+  function updateUI() {
+    crystalsCount.textContent = `Křišťály: ${crystals}`;
+    autoclickersCount.textContent = autoclickers;
+    factoriesCount.textContent = factories;
+    minesCount.textContent = mines;
+    refineriesCount.textContent = refineries;
+    quantumDrillsCount.textContent = quantumDrills;
+    clickPowerCount.textContent = clickPower;
+
+    perSecondLabel.textContent = getPerSecond();
+    perClickLabel.textContent = clickPower;
+
+    // ceny
+    priceAutoclickerLabel.textContent = priceAutoclicker;
+    priceFactoryLabel.textContent = priceFactory;
+    priceMineLabel.textContent = priceMine;
+    priceRefineryLabel.textContent = priceRefinery;
+    priceQuantumLabel.textContent = priceQuantumDrill;
+    priceClickPowerLabel.textContent = priceClickPower;
+
+    // vlastněné kusy v shopu
+    autoclickersOwned.textContent = autoclickers;
+    factoriesOwned.textContent = factories;
+    minesOwned.textContent = mines;
+    refineriesOwned.textContent = refineries;
+    quantumOwned.textContent = quantumDrills;
+    clickPowerOwned.textContent = clickPower;
+
+    // podmínky odemykání
+    const factoryUnlocked = autoclickers >= 10;
+    const mineUnlocked = factories >= 5;
+    const refineryUnlocked = mines >= 3;
+    const quantumUnlocked = refineries >= 2;
+
+    // povolení/zakázání tlačítek podle ceny + odemčení
+    buyAutoclickerBtn.disabled = crystals < priceAutoclicker;
+
+    buyFactoryBtn.disabled = !factoryUnlocked || crystals < priceFactory;
+    document.getElementById('row-factory').classList.toggle('locked', !factoryUnlocked);
+
+    buyMineBtn.disabled = !mineUnlocked || crystals < priceMine;
+    document.getElementById('row-mine').classList.toggle('locked', !mineUnlocked);
+
+    buyRefineryBtn.disabled = !refineryUnlocked || crystals < priceRefinery;
+    document.getElementById('row-refinery').classList.toggle('locked', !refineryUnlocked);
+
+    buyQuantumBtn.disabled = !quantumUnlocked || crystals < priceQuantumDrill;
+    document.getElementById('row-quantum').classList.toggle('locked', !quantumUnlocked);
+
+    upgradeClickPowerBtn.disabled = crystals < priceClickPower;
+  }
+
+  // přepínání shopu
+  shopToggle.onclick = () => {
+    shop.style.display = shop.style.display === 'none' ? 'block' : 'none';
+    shopToggle.textContent = shop.style.display === 'none' ? 'Otevřít obchod' : 'Zavřít obchod';
+  };
+
+  // přepínání žebříčku
+  leaderboardToggle.onclick = () => {
+    leaderboard.style.display = leaderboard.style.display === 'none' ? 'block' : 'none';
+    leaderboardToggle.textContent = leaderboard.style.display === 'none' ? 'Žebříček hráčů' : 'Zavřít žebříček';
+    if (leaderboard.style.display === 'block') {
+      loadLeaderboard('crystals'); // Načteme defaultní žebříček
+    }
+  };
+
+  // Žebříček - tab přepínání
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      loadLeaderboard(btn.getAttribute('data-type'));
+    };
+  });
+
+  // Načtení žebříčku s lepším error handlingem
+  async function loadLeaderboard(type) {
+    const leaderboardList = document.getElementById('leaderboard-list');
+    
+    try {
+      // Zobrazíme loading zprávu
+      leaderboardList.innerHTML = '<div class="loading-message">Načítání žebříčku...</div>';
+      
+      const response = await fetch(`/leaderboard?type=${type}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        displayLeaderboard(data.leaderboard, data.label);
+      } else {
+        throw new Error(data.message || 'Neznámá chyba serveru');
+      }
+    } catch (error) {
+      console.error('Chyba při načítání žebříčku:', error);
+      leaderboardList.innerHTML = `<div class="error-message">Chyba při načítání žebříčku: ${error.message}</div>`;
+    }
+  }
+
+  // Zobrazení žebříčku
+  function displayLeaderboard(leaderboard, label) {
+    const leaderboardList = document.getElementById('leaderboard-list');
+    
+    if (leaderboard.length === 0) {
+      leaderboardList.innerHTML = '<p>Žádní hráči zatím nejsou v žebříčku</p>';
+      return;
+    }
+
+    let html = '';
+    leaderboard.forEach(player => {
+      let rankClass = 'rank';
+      if (player.rank === 1) rankClass += ' first';
+      else if (player.rank === 2) rankClass += ' second';
+      else if (player.rank === 3) rankClass += ' third';
+
+      let valueFormatted = player.value;
+      if (label === 'CPS' || label === 'Křišťály') {
+        valueFormatted = numberWithCommas(player.value);
+      }
+
+      html += `
+        <div class="leaderboard-item">
+          <div class="${rankClass}">#${player.rank}</div>
+          <div class="username">${escapeHtml(player.username)}</div>
+          <div class="value">${valueFormatted} ${label}</div>
+        </div>
+      `;
+    });
+    
+    leaderboardList.innerHTML = html;
+  }
+
+  // Formátování čísel s čárkami
+  function numberWithCommas(x) {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  }
+
+  // Escape HTML pro bezpečnost
+  function escapeHtml(text) {
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+  }
+
+  // Přepínání formulářů
+  document.getElementById('showLogin').onclick = () => {
+    authForms.style.display = 'flex';
+    document.getElementById('loginForm').style.display = 'block';
+    document.getElementById('registerForm').style.display = 'none';
+  };
+  document.getElementById('showRegister').onclick = () => {
+    authForms.style.display = 'flex';
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('registerForm').style.display = 'block';
+  };
+  toRegisterLink.onclick = () => {
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('registerForm').style.display = 'block';
+  };
+  toLoginLink.onclick = () => {
+    document.getElementById('loginForm').style.display = 'block';
+    document.getElementById('registerForm').style.display = 'none';
+  };
+
+  // Zavření formulářů při kliknutí mimo
+  document.onclick = (e) => {
+    if (!authForms.contains(e.target) && !authButtons.contains(e.target)) {
+      authForms.style.display = 'none';
+    }
+  };
+
+  // Logout
+  logoutBtn.onclick = () => {
+    userId = null;
+    crystals = 0; autoclickers = 0; factories = 0; mines = 0; refineries = 0; quantumDrills = 0; clickPower = 1; totalClicks = 0;
+    priceAutoclicker = 5; priceFactory = 50; priceMine = 500; priceRefinery = 5000; priceQuantumDrill = 50000; priceClickPower = 20;
+    usernameDisplay.textContent = '';
+    logoutBtn.style.display = 'none';
+    authButtons.style.display = 'inline-block';
+    authForms.style.display = 'none';
+    updateUI();
+  };
+
+  // Klikání na křišťály
+  clickBtn.onclick = () => {
+    crystals += clickPower;
+    totalClicks++;
+    updateUI();
+  };
+
+  // Nákupy
+  function escalatePrice(p, factor = 1.2) { return Math.floor(p * factor); }
+
+  buyAutoclickerBtn.onclick = () => {
+    if (crystals >= priceAutoclicker) {
+      crystals -= priceAutoclicker;
+      autoclickers++;
+      priceAutoclicker = escalatePrice(priceAutoclicker, 1.2);
+      updateUI();
+    }
+  };
+
+  buyFactoryBtn.onclick = () => {
+    const unlocked = autoclickers >= 10;
+    if (!unlocked) return;
+    if (crystals >= priceFactory) {
+      crystals -= priceFactory;
+      factories++;
+      priceFactory = escalatePrice(priceFactory, 1.2);
+      updateUI();
+    }
+  };
+
+  buyMineBtn.onclick = () => {
+    const unlocked = factories >= 5;
+    if (!unlocked) return;
+    if (crystals >= priceMine) {
+      crystals -= priceMine;
+      mines++;
+      priceMine = escalatePrice(priceMine, 1.2);
+      updateUI();
+    }
+  };
+
+  buyRefineryBtn.onclick = () => {
+    const unlocked = mines >= 3;
+    if (!unlocked) return;
+    if (crystals >= priceRefinery) {
+      crystals -= priceRefinery;
+      refineries++;
+      priceRefinery = escalatePrice(priceRefinery, 1.2);
+      updateUI();
+    }
+  };
+
+  buyQuantumBtn.onclick = () => {
+    const unlocked = refineries >= 2;
+    if (!unlocked) return;
+    if (crystals >= priceQuantumDrill) {
+      crystals -= priceQuantumDrill;
+      quantumDrills++;
+      priceQuantumDrill = escalatePrice(priceQuantumDrill, 1.25);
+      updateUI();
+    }
+  };
+
+  upgradeClickPowerBtn.onclick = () => {
+    if (crystals >= priceClickPower) {
+      crystals -= priceClickPower;
+      clickPower++;
+      priceClickPower = Math.floor(priceClickPower * 1.5);
+      updateUI();
+    }
+  };
+
+  // Autoprodukce
+  setInterval(() => {
+    crystals += getPerSecond();
+    updateUI();
+  }, 1000);
+
+  // Auto-save každých 5s + aktualizace žebříčku
+  setInterval(() => { 
+    if (!userId) return; 
+    saveGame();
+    // Aktualizujeme žebříček pokud je otevřený
+    if (leaderboard.style.display === 'block') {
+      const activeTab = document.querySelector('.tab-btn.active');
+      if (activeTab) {
+        loadLeaderboard(activeTab.getAttribute('data-type'));
+      }
+    }
+  }, 5000);
+
+  async function saveGame() {
+    const gameData = {
+      crystals, autoclickers, factories, mines, refineries, quantumDrills,
+      clickPower, totalClicks,
+      priceAutoclicker, priceFactory, priceMine, priceRefinery, priceQuantumDrill, priceClickPower
+    };
+    try {
+      const response = await fetch('/save_game', {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, game_data: gameData })
+      });
+      
+      if (!response.ok) {
+        console.error('Chyba při ukládání hry:', response.status);
+      }
+    } catch(e) { 
+      console.error('Chyba při ukládání hry:', e);
+    }
+  }
+
+  async function loadGameData() {
+    if (!userId) return;
+    try {
+      const res = await fetch(`/load_game?user_id=${userId}`);
+      const data = await res.json();
+      if (data.success && data.game_data) {
+        const gd = data.game_data;
+        crystals = gd.crystals || 0;
+        autoclickers = gd.autoclickers || 0;
+        factories = gd.factories || 0;
+        mines = gd.mines || 0;
+        refineries = gd.refineries || 0;
+        quantumDrills = gd.quantumDrills || 0;
+        clickPower = gd.clickPower || 1;
+        totalClicks = gd.totalClicks || 0;
+        priceAutoclicker = gd.priceAutoclicker || 5;
+        priceFactory = gd.priceFactory || 50;
+        priceMine = gd.priceMine || 500;
+        priceRefinery = gd.priceRefinery || 5000;
+        priceQuantumDrill = gd.priceQuantumDrill || 50000;
+        priceClickPower = gd.priceClickPower || 20;
+        updateUI();
+      }
+    } catch(e) {
+      console.error('Chyba při načítání hry:', e);
+    }
+  }
+
+  // Přihlášení
+  loginForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value.trim();
+
+    try {
+      const res = await fetch('/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        userId = data.user_id;
+        usernameDisplay.textContent = `Vítej, ${username}`;
+        logoutBtn.style.display = 'inline-block';
+        authButtons.style.display = 'none';
+        authForms.style.display = 'none';
+        await loadGameData();
+      } else {
+        alert(data.message || 'Chyba přihlášení');
+      }
+    } catch(e) {
+      alert('Chyba při přihlašování: ' + e.message);
+    }
+  });
+
+  // Registrace
+  registerForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const username = document.getElementById('registerUsername').value.trim();
+    const password = document.getElementById('registerPassword').value.trim();
+
+    try {
+      const res = await fetch('/register', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        alert('Registrace proběhla úspěšně, můžeš se přihlásit.');
+        document.getElementById('loginForm').style.display = 'block';
+        document.getElementById('registerForm').style.display = 'none';
+      } else {
+        alert(data.message || 'Chyba registrace');
+      }
+    } catch(e) {
+      alert('Chyba při registraci: ' + e.message);
+    }
+  });
+
+  updateUI();
+</script>
+</body>
+</html>
