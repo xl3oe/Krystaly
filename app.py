@@ -4,6 +4,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from psycopg2 import pool
 from flask_cors import CORS
+import math
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
@@ -73,7 +74,8 @@ def init_database():
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(255) UNIQUE NOT NULL,
                 password VARCHAR(255) NOT NULL,
-                crystals INTEGER DEFAULT 0,
+                crystals BIGINT DEFAULT 0,
+                lifetime_crystals BIGINT DEFAULT 0,
                 autoclickers INTEGER DEFAULT 0,
                 factories INTEGER DEFAULT 0,
                 mines INTEGER DEFAULT 0,
@@ -88,7 +90,12 @@ def init_database():
                 priceQuantumDrill INTEGER DEFAULT 50000,
                 priceClickPower INTEGER DEFAULT 20,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                rebirthCount INTEGER DEFAULT 0,
+                rebirthPoints INTEGER DEFAULT 0,
+                bonusClickPower INTEGER DEFAULT 0,
+                bonusProduction INTEGER DEFAULT 0,
+                bonusRebirthPoints INTEGER DEFAULT 0
             )
             """
         )
@@ -96,6 +103,7 @@ def init_database():
         # Vytvoření indexů pro výkon
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_crystals ON crystal_game_data(crystals)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_username ON crystal_game_data(username)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_rebirth ON crystal_game_data(rebirthCount)")
         
         conn.commit()
         print("Databáze inicializována úspěšně")
@@ -202,6 +210,7 @@ def save_game():
             """
             UPDATE crystal_game_data SET
                 crystals=%s,
+                lifetime_crystals=%s,
                 autoclickers=%s,
                 factories=%s,
                 mines=%s,
@@ -215,11 +224,17 @@ def save_game():
                 priceRefinery=%s,
                 priceQuantumDrill=%s,
                 priceClickPower=%s,
+                rebirthCount=%s,
+                rebirthPoints=%s,
+                bonusClickPower=%s,
+                bonusProduction=%s,
+                bonusRebirthPoints=%s,
                 updated_at=CURRENT_TIMESTAMP
             WHERE id=%s
             """,
             (
                 gd.get('crystals', 0),
+                gd.get('lifetime_crystals', 0),
                 gd.get('autoclickers', 0),
                 gd.get('factories', 0),
                 gd.get('mines', 0),
@@ -233,6 +248,11 @@ def save_game():
                 gd.get('priceRefinery', 5000),
                 gd.get('priceQuantumDrill', 50000),
                 gd.get('priceClickPower', 20),
+                gd.get('rebirthCount', 0),
+                gd.get('rebirthPoints', 0),
+                gd.get('bonusClickPower', 0),
+                gd.get('bonusProduction', 0),
+                gd.get('bonusRebirthPoints', 0),
                 user_id
             )
         )
@@ -266,11 +286,12 @@ def load_game():
 
         game_data = {
             'crystals': row.get('crystals', 0),
+            'lifetime_crystals': row.get('lifetime_crystals', 0),
             'autoclickers': row.get('autoclickers', 0),
             'factories': row.get('factories', 0),
             'mines': row.get('mines', 0),
             'refineries': row.get('refineries', 0),
-            'quantumDrills': row.get('quantumdrills', 0),  # PostgreSQL lowercase
+            'quantumDrills': row.get('quantumdrills', 0),
             'clickPower': row.get('clickpower', 1),
             'totalClicks': row.get('totalclicks', 0),
             'priceAutoclicker': row.get('priceautoclicker', 5),
@@ -278,13 +299,165 @@ def load_game():
             'priceMine': row.get('pricemine', 500),
             'priceRefinery': row.get('pricerefinery', 5000),
             'priceQuantumDrill': row.get('pricequantumdrill', 50000),
-            'priceClickPower': row.get('priceclickpower', 20)
+            'priceClickPower': row.get('priceclickpower', 20),
+            'rebirthCount': row.get('rebirthcount', 0),
+            'rebirthPoints': row.get('rebirthpoints', 0),
+            'bonusClickPower': row.get('bonusclickpower', 0),
+            'bonusProduction': row.get('bonusproduction', 0),
+            'bonusRebirthPoints': row.get('bonusrebirthpoints', 0)
         }
 
         return jsonify({'success': True, 'game_data': game_data})
     except Exception as e:
         print(f"Chyba načítání: {e}")
         return jsonify({'success': False, 'message': 'Chyba při načítání'}), 500
+    finally:
+        cursor.close()
+        return_db_connection(conn)
+
+# Rebirth endpoint
+@app.route('/rebirth', methods=['POST'])
+def rebirth():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Chyba databáze'}), 500
+        
+    cursor = conn.cursor()
+    
+    try:
+        # Načtení aktuálních dat hráče
+        cursor.execute("SELECT * FROM crystal_game_data WHERE id = %s", (user_id,))
+        row = cursor.fetchone()
+        
+        if not row:
+            return jsonify({'success': False, 'message': 'Hráč nenalezen'}), 404
+        
+        current_crystals = row.get('crystals', 0)
+        rebirth_count = row.get('rebirthcount', 0)
+        
+        # Výpočet potřebných křišťálů pro rebirth
+        required_crystals = 100000 * (2 ** rebirth_count)
+        
+        if current_crystals < required_crystals:
+            return jsonify({
+                'success': False, 
+                'message': f'Potřebuješ alespoň {required_crystals:,} křišťálů pro rebirth!'
+            }), 400
+        
+        # Výpočet rebirth points
+        rebirth_points = math.floor(math.log10(current_crystals) * (1 + row.get('bonusrebirthpoints', 0)/100))
+
+        # Reset hráče + přidání bonusů
+        cursor.execute(
+            """
+            UPDATE crystal_game_data SET
+                crystals=0,
+                autoclickers=0,
+                factories=0,
+                mines=0,
+                refineries=0,
+                quantumDrills=0,
+                clickPower=1,
+                priceAutoclicker=5,
+                priceFactory=50,
+                priceMine=500,
+                priceRefinery=5000,
+                priceQuantumDrill=50000,
+                priceClickPower=20,
+                rebirthCount=rebirthCount + 1,
+                rebirthPoints=rebirthPoints + %s,
+                updated_at=CURRENT_TIMESTAMP
+            WHERE id=%s
+            RETURNING rebirthCount, rebirthPoints
+            """,
+            (rebirth_points, user_id)
+        )
+        
+        result = cursor.fetchone()
+        conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'rebirthCount': result['rebirthcount'],
+            'rebirthPoints': result['rebirthpoints'],
+            'gainedPoints': rebirth_points
+        })
+    except Exception as e:
+        print(f"Chyba rebirthu: {e}")
+        conn.rollback()
+        return jsonify({'success': False, 'message': 'Chyba při rebirthu'}), 500
+    finally:
+        cursor.close()
+        return_db_connection(conn)
+
+# Upgrade rebirth bonusů
+@app.route('/upgrade_rebirth', methods=['POST'])
+def upgrade_rebirth():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    bonus_type = data.get('type')  # 'click' nebo 'production' nebo 'points'
+    
+    if bonus_type not in ['click', 'production', 'points']:
+        return jsonify({'success': False, 'message': 'Neplatný typ bonusu'}), 400
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Chyba databáze'}), 500
+        
+    cursor = conn.cursor()
+    
+    try:
+        # Načtení aktuálních dat hráče
+        cursor.execute("SELECT rebirthPoints FROM crystal_game_data WHERE id = %s", (user_id,))
+        row = cursor.fetchone()
+        
+        if not row:
+            return jsonify({'success': False, 'message': 'Hráč nenalezen'}), 404
+        
+        current_points = row['rebirthpoints']
+        cost = 10  # Základní cena upgradu
+        
+        if current_points < cost:
+            return jsonify({
+                'success': False, 
+                'message': f'Potřebuješ alespoň {cost} rebirth bodů pro upgrade!'
+            }), 400
+        
+        # Aktualizace příslušného bonusu
+        if bonus_type == 'click':
+            update_field = 'bonusClickPower'
+        elif bonus_type == 'production':
+            update_field = 'bonusProduction'
+        else:  # points
+            update_field = 'bonusRebirthPoints'
+        
+        cursor.execute(
+            f"""
+            UPDATE crystal_game_data SET
+                {update_field}={update_field} + 1,
+                rebirthPoints=rebirthPoints - %s,
+                updated_at=CURRENT_TIMESTAMP
+            WHERE id=%s
+            RETURNING {update_field}, rebirthPoints
+            """,
+            (cost, user_id)
+        )
+        
+        result = cursor.fetchone()
+        conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'newValue': result[update_field.lower()],
+            'remainingPoints': result['rebirthpoints']
+        })
+    except Exception as e:
+        print(f"Chyba upgradu rebirth bonusu: {e}")
+        conn.rollback()
+        return jsonify({'success': False, 'message': 'Chyba při upgradu'}), 500
     finally:
         cursor.close()
         return_db_connection(conn)
@@ -314,9 +487,11 @@ def leaderboard():
         elif leaderboard_type == 'cps':
             query = """
             SELECT username, 
-                   (COALESCE(autoclickers, 0) * 1 + COALESCE(factories, 0) * 5 + COALESCE(mines, 0) * 50 + COALESCE(refineries, 0) * 200 + COALESCE(quantumDrills, 0) * 1000) as value
+                   (COALESCE(autoclickers, 0) * 1 + COALESCE(factories, 0) * 5 + COALESCE(mines, 0) * 50 + 
+                   COALESCE(refineries, 0) * 200 + COALESCE(quantumDrills, 0) * 1000 as value
             FROM crystal_game_data 
-            WHERE (COALESCE(autoclickers, 0) * 1 + COALESCE(factories, 0) * 5 + COALESCE(mines, 0) * 50 + COALESCE(refineries, 0) * 200 + COALESCE(quantumDrills, 0) * 1000) > 0
+            WHERE (COALESCE(autoclickers, 0) * 1 + COALESCE(factories, 0) * 5 + COALESCE(mines, 0) * 50 + 
+                  COALESCE(refineries, 0) * 200 + COALESCE(quantumDrills, 0) * 1000 > 0
             ORDER BY value DESC 
             LIMIT 10
             """
@@ -333,13 +508,24 @@ def leaderboard():
         elif leaderboard_type == 'buildings':
             query = """
             SELECT username, 
-                   (COALESCE(autoclickers, 0) + COALESCE(factories, 0) + COALESCE(mines, 0) + COALESCE(refineries, 0) + COALESCE(quantumDrills, 0)) as value
+                   (COALESCE(autoclickers, 0) + COALESCE(factories, 0) + COALESCE(mines, 0) + 
+                    COALESCE(refineries, 0) + COALESCE(quantumDrills, 0)) as value
             FROM crystal_game_data 
-            WHERE (COALESCE(autoclickers, 0) + COALESCE(factories, 0) + COALESCE(mines, 0) + COALESCE(refineries, 0) + COALESCE(quantumDrills, 0)) > 0
+            WHERE (COALESCE(autoclickers, 0) + COALESCE(factories, 0) + COALESCE(mines, 0) + 
+                  COALESCE(refineries, 0) + COALESCE(quantumDrills, 0)) > 0
             ORDER BY value DESC 
             LIMIT 10
             """
             label = "Celkové budovy"
+        elif leaderboard_type == 'rebirth':
+            query = """
+            SELECT username, COALESCE(rebirthCount, 0) as value 
+            FROM crystal_game_data 
+            WHERE COALESCE(rebirthCount, 0) > 0 
+            ORDER BY COALESCE(rebirthCount, 0) DESC 
+            LIMIT 10
+            """
+            label = "Rebirthy"
         else:
             return jsonify({'success': False, 'message': 'Neplatný typ žebříčku'}), 400
 
@@ -387,12 +573,16 @@ def stats():
         cursor.execute("SELECT SUM(totalClicks) as total_clicks FROM crystal_game_data")
         total_clicks = cursor.fetchone()['total_clicks'] or 0
         
+        cursor.execute("SELECT SUM(rebirthCount) as total_rebirths FROM crystal_game_data")
+        total_rebirths = cursor.fetchone()['total_rebirths'] or 0
+        
         return jsonify({
             'success': True,
             'stats': {
                 'total_players': total_players,
                 'total_crystals': total_crystals,
-                'total_clicks': total_clicks
+                'total_clicks': total_clicks,
+                'total_rebirths': total_rebirths
             }
         })
     except Exception as e:
