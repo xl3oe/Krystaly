@@ -67,48 +67,49 @@ def init_database():
         
     cursor = conn.cursor()
     try:
-        # Vytvoření tabulky pro PostgreSQL
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS crystal_game_data (
-                id SERIAL PRIMARY KEY,
-                username VARCHAR(255) UNIQUE NOT NULL,
-                password VARCHAR(255) NOT NULL,
-                crystals BIGINT DEFAULT 0,
-                lifetime_crystals BIGINT DEFAULT 0,
-                autoclickers INTEGER DEFAULT 0,
-                factories INTEGER DEFAULT 0,
-                mines INTEGER DEFAULT 0,
-                refineries INTEGER DEFAULT 0,
-                quantumDrills INTEGER DEFAULT 0,
-                clickPower INTEGER DEFAULT 1,
-                totalClicks INTEGER DEFAULT 0,
-                priceAutoclicker INTEGER DEFAULT 5,
-                priceFactory INTEGER DEFAULT 50,
-                priceMine INTEGER DEFAULT 500,
-                priceRefinery INTEGER DEFAULT 5000,
-                priceQuantumDrill INTEGER DEFAULT 50000,
-                priceClickPower INTEGER DEFAULT 20,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                rebirthCount INTEGER DEFAULT 0,
-                rebirthPoints INTEGER DEFAULT 0,
-                bonusClickPower INTEGER DEFAULT 0,
-                bonusProduction INTEGER DEFAULT 0,
-                bonusRebirthPoints INTEGER DEFAULT 0
-            )
-            """
-        )
-        
-        # Vytvoření indexů pro výkon
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_crystals ON crystal_game_data(crystals)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_username ON crystal_game_data(username)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_rebirth ON crystal_game_data(rebirthCount)")
+        # Přidání chybějících sloupců, pokud neexistují
+        cursor.execute("""
+            DO $$
+            BEGIN
+                -- Přidání sloupce pro celkový počet křišťálů
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                              WHERE table_name='crystal_game_data' AND column_name='lifetime_crystals') THEN
+                    ALTER TABLE crystal_game_data ADD COLUMN lifetime_crystals BIGINT DEFAULT 0;
+                END IF;
+                
+                -- Přidání sloupců pro rebirth mechaniku
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                              WHERE table_name='crystal_game_data' AND column_name='rebirthcount') THEN
+                    ALTER TABLE crystal_game_data ADD COLUMN rebirthcount INTEGER DEFAULT 0;
+                END IF;
+                
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                              WHERE table_name='crystal_game_data' AND column_name='rebirthpoints') THEN
+                    ALTER TABLE crystal_game_data ADD COLUMN rebirthpoints INTEGER DEFAULT 0;
+                END IF;
+                
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                              WHERE table_name='crystal_game_data' AND column_name='bonusclickpower') THEN
+                    ALTER TABLE crystal_game_data ADD COLUMN bonusclickpower INTEGER DEFAULT 0;
+                END IF;
+                
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                              WHERE table_name='crystal_game_data' AND column_name='bonusproduction') THEN
+                    ALTER TABLE crystal_game_data ADD COLUMN bonusproduction INTEGER DEFAULT 0;
+                END IF;
+                
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                              WHERE table_name='crystal_game_data' AND column_name='bonusrebirthpoints') THEN
+                    ALTER TABLE crystal_game_data ADD COLUMN bonusrebirthpoints INTEGER DEFAULT 0;
+                END IF;
+            END
+            $$;
+        """)
         
         conn.commit()
-        print("Databáze inicializována úspěšně")
+        print("Databáze aktualizována úspěšně")
     except Exception as e:
-        print(f"Chyba při inicializaci databáze: {e}")
+        print(f"Chyba při aktualizaci databáze: {e}")
         conn.rollback()
     finally:
         cursor.close()
