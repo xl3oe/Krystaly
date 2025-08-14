@@ -37,6 +37,18 @@
     .locked { opacity: 0.5; }
     .req { font-size: 0.9em; }
 
+    /* Rebirth sekce */
+    #rebirthToggle { margin-top: 10px; background: #E91E63; }
+    #rebirthSection { margin-top: 15px; background: rgba(0,0,0,0.6); border-radius: 10px; padding: 12px; display: none; text-align: left; }
+    #rebirthSection h3 { margin-top: 0; color: #E91E63; }
+    #rebirthSection p { margin: 8px 0; }
+    .rebirth-btn { background: #E91E63 !important; }
+    .rebirth-bonus { color: #FFC107; font-weight: bold; }
+    .rebirth-cost { color: #4CAF50; font-weight: bold; }
+    .rebirth-points { color: #00BCD4; font-weight: bold; }
+    .rebirth-upgrade { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .rebirth-upgrade:last-child { border-bottom: none; }
+
     /* Žebříček */
     #leaderboardToggle { margin-top: 10px; background: #FF9800; }
     #leaderboard { margin-top: 15px; background: rgba(0,0,0,0.6); border-radius: 10px; padding: 12px; display: none; text-align: left; }
@@ -88,6 +100,7 @@
 <main>
   <h1>Křišťálová hra</h1>
   <p id="crystalsCount">Křišťály: 0</p>
+  <p id="lifetimeCrystals" class="muted">Celkem křišťálů: 0</p>
 
   <div class="stats">
     <p>Autoklikery: <span id="autoclickersCount">0</span> <span class="muted">(+1/s každý)</span></p>
@@ -96,6 +109,8 @@
     <p>Rafinerie: <span id="refineriesCount">0</span> <span class="muted">(+200/s každá)</span></p>
     <p>Kvantové vrtačky: <span id="quantumDrillsCount">0</span> <span class="muted">(+1000/s každá)</span></p>
     <p>Síla kliku: <span id="clickPowerCount">1</span> <span class="muted">(+X/klik)</span></p>
+    <p>Rebirthy: <span id="rebirthCount">0</span> <span class="muted">(+bonusy)</span></p>
+    <p>Rebirth body: <span id="rebirthPoints" class="rebirth-points">0</span></p>
   </div>
 
   <button id="clickBtn" class="gameBtn">Klikni na křišťál (+<span id="perClick">1</span>)</button>
@@ -123,7 +138,7 @@
     <div class="shop-row" id="row-mine">
       <div><strong>Důl</strong> <span class="muted">(+50/s)</span></div>
       <div>Cena: <span id="priceMineLabel">500</span></div>
-      <div>Máš: <span id="minesOwned">0</span></div>
+      <div>Máš: <span id="minesOwned">0</span></div>      
       <div class="req" id="mineReq">Vyžaduje 5 továren</div>
       <button id="buyMineBtn" class="gameBtn">Koupit</button>
     </div>
@@ -153,6 +168,45 @@
     </div>
   </div>
 
+  <button id="rebirthToggle" class="gameBtn rebirth-btn">Rebirth</button>
+  <div id="rebirthSection">
+    <h3>Rebirth Mechanika</h3>
+    <p>Rebirth resetuje tvůj postup, ale získáš <span class="rebirth-points">Rebirth body</span> pro trvalé bonusy!</p>
+    <p>Potřebuješ: <span id="rebirthRequired" class="rebirth-cost">100,000</span> křišťálů</p>
+    <p>Získáš: ~<span id="rebirthGain" class="rebirth-points">0</span> bodů</p>
+    <button id="doRebirthBtn" class="gameBtn rebirth-btn" disabled>Proved Rebirth</button>
+    
+    <h3>Rebirth Bonusy</h3>
+    <p>Máš: <span id="currentRebirthPoints" class="rebirth-points">0</span> bodů</p>
+    
+    <div class="rebirth-upgrade">
+      <div>
+        <strong>Síla kliku</strong>
+        <div class="muted">Aktuální bonus: +<span id="currentClickBonus">0</span>%</div>
+      </div>
+      <div>Cena: <span class="rebirth-cost">10</span> bodů</div>
+      <button id="upgradeClickBonusBtn" class="gameBtn rebirth-btn" disabled>Vylepšit</button>
+    </div>
+    
+    <div class="rebirth-upgrade">
+      <div>
+        <strong>Produkce</strong>
+        <div class="muted">Aktuální bonus: +<span id="currentProductionBonus">0</span>%</div>
+      </div>
+      <div>Cena: <span class="rebirth-cost">10</span> bodů</div>
+      <button id="upgradeProductionBonusBtn" class="gameBtn rebirth-btn" disabled>Vylepšit</button>
+    </div>
+    
+    <div class="rebirth-upgrade">
+      <div>
+        <strong>Rebirth body</strong>
+        <div class="muted">Aktuální bonus: +<span id="currentPointsBonus">0</span>%</div>
+      </div>
+      <div>Cena: <span class="rebirth-cost">10</span> bodů</div>
+      <button id="upgradePointsBonusBtn" class="gameBtn rebirth-btn" disabled>Vylepšit</button>
+    </div>
+  </div>
+
   <button id="leaderboardToggle" class="gameBtn">Žebříček hráčů</button>
   <div id="leaderboard">
     <div class="leaderboard-tabs">
@@ -160,6 +214,7 @@
       <button class="tab-btn" data-type="cps">CPS</button>
       <button class="tab-btn" data-type="clicks">Kliky</button>
       <button class="tab-btn" data-type="buildings">Budovy</button>
+      <button class="tab-btn" data-type="rebirth">Rebirthy</button>
     </div>
     <div id="leaderboard-content">
       <div class="leaderboard-list" id="leaderboard-list"></div>
@@ -170,6 +225,7 @@
 <script>
   let userId = null;
   let crystals = 0;
+  let lifetimeCrystals = 0;
   let autoclickers = 0;
   let factories = 0;
   let mines = 0;
@@ -177,6 +233,11 @@
   let quantumDrills = 0;
   let clickPower = 1;
   let totalClicks = 0;
+  let rebirthCount = 0;
+  let rebirthPoints = 0;
+  let bonusClickPower = 0;
+  let bonusProduction = 0;
+  let bonusRebirthPoints = 0;
 
   // Ceny (načítají se i z DB)
   let priceAutoclicker = 5;
@@ -188,12 +249,15 @@
 
   // DOM prvky
   const crystalsCount = document.getElementById('crystalsCount');
+  const lifetimeCrystalsLabel = document.getElementById('lifetimeCrystals');
   const autoclickersCount = document.getElementById('autoclickersCount');
   const factoriesCount = document.getElementById('factoriesCount');
   const minesCount = document.getElementById('minesCount');
   const refineriesCount = document.getElementById('refineriesCount');
   const quantumDrillsCount = document.getElementById('quantumDrillsCount');
   const clickPowerCount = document.getElementById('clickPowerCount');
+  const rebirthCountLabel = document.getElementById('rebirthCount');
+  const rebirthPointsLabel = document.getElementById('rebirthPoints');
   const perSecondLabel = document.getElementById('perSecond');
   const perClickLabel = document.getElementById('perClick');
 
@@ -212,10 +276,20 @@
   const quantumOwned = document.getElementById('quantumOwned');
   const clickPowerOwned = document.getElementById('clickPowerOwned');
 
+  // rebirth elements
+  const rebirthRequiredLabel = document.getElementById('rebirthRequired');
+  const rebirthGainLabel = document.getElementById('rebirthGain');
+  const currentRebirthPointsLabel = document.getElementById('currentRebirthPoints');
+  const currentClickBonusLabel = document.getElementById('currentClickBonus');
+  const currentProductionBonusLabel = document.getElementById('currentProductionBonus');
+  const currentPointsBonusLabel = document.getElementById('currentPointsBonus');
+
   // tlačítka
   const clickBtn = document.getElementById('clickBtn');
   const shopToggle = document.getElementById('shopToggle');
   const shop = document.getElementById('shop');
+  const rebirthToggle = document.getElementById('rebirthToggle');
+  const rebirthSection = document.getElementById('rebirthSection');
   const leaderboardToggle = document.getElementById('leaderboardToggle');
   const leaderboard = document.getElementById('leaderboard');
 
@@ -225,6 +299,11 @@
   const buyRefineryBtn = document.getElementById('buyRefineryBtn');
   const buyQuantumBtn = document.getElementById('buyQuantumBtn');
   const upgradeClickPowerBtn = document.getElementById('upgradeClickPowerBtn');
+
+  const doRebirthBtn = document.getElementById('doRebirthBtn');
+  const upgradeClickBonusBtn = document.getElementById('upgradeClickBonusBtn');
+  const upgradeProductionBonusBtn = document.getElementById('upgradeProductionBonusBtn');
+  const upgradePointsBonusBtn = document.getElementById('upgradePointsBonusBtn');
 
   const usernameDisplay = document.getElementById('usernameDisplay');
   const logoutBtn = document.getElementById('logoutBtn');
@@ -236,34 +315,42 @@
   const toLoginLink = document.getElementById('toLogin');
 
   function getPerSecond() {
-    return (
+    const baseProduction = (
       autoclickers * 1 +
       factories * 5 +
       mines * 50 +
       refineries * 200 +
       quantumDrills * 1000
     );
+    return Math.floor(baseProduction * (1 + bonusProduction / 100));
+  }
+
+  function getClickPower() {
+    return clickPower * (1 + bonusClickPower / 100);
   }
 
   function updateUI() {
-    crystalsCount.textContent = `Křišťály: ${crystals}`;
+    crystalsCount.textContent = `Křišťály: ${numberWithCommas(crystals)}`;
+    lifetimeCrystalsLabel.textContent = `Celkem křišťálů: ${numberWithCommas(lifetimeCrystals)}`;
     autoclickersCount.textContent = autoclickers;
     factoriesCount.textContent = factories;
     minesCount.textContent = mines;
     refineriesCount.textContent = refineries;
     quantumDrillsCount.textContent = quantumDrills;
-    clickPowerCount.textContent = clickPower;
+    clickPowerCount.textContent = Math.floor(getClickPower());
+    rebirthCountLabel.textContent = rebirthCount;
+    rebirthPointsLabel.textContent = rebirthPoints;
 
-    perSecondLabel.textContent = getPerSecond();
-    perClickLabel.textContent = clickPower;
+    perSecondLabel.textContent = numberWithCommas(getPerSecond());
+    perClickLabel.textContent = Math.floor(getClickPower());
 
     // ceny
-    priceAutoclickerLabel.textContent = priceAutoclicker;
-    priceFactoryLabel.textContent = priceFactory;
-    priceMineLabel.textContent = priceMine;
-    priceRefineryLabel.textContent = priceRefinery;
-    priceQuantumLabel.textContent = priceQuantumDrill;
-    priceClickPowerLabel.textContent = priceClickPower;
+    priceAutoclickerLabel.textContent = numberWithCommas(priceAutoclicker);
+    priceFactoryLabel.textContent = numberWithCommas(priceFactory);
+    priceMineLabel.textContent = numberWithCommas(priceMine);
+    priceRefineryLabel.textContent = numberWithCommas(priceRefinery);
+    priceQuantumLabel.textContent = numberWithCommas(priceQuantumDrill);
+    priceClickPowerLabel.textContent = numberWithCommas(priceClickPower);
 
     // vlastněné kusy v shopu
     autoclickersOwned.textContent = autoclickers;
@@ -271,7 +358,17 @@
     minesOwned.textContent = mines;
     refineriesOwned.textContent = refineries;
     quantumOwned.textContent = quantumDrills;
-    clickPowerOwned.textContent = clickPower;
+    clickPowerOwned.textContent = Math.floor(getClickPower());
+
+    // rebirth UI
+    const requiredCrystals = 100000 * Math.pow(2, rebirthCount);
+    rebirthRequiredLabel.textContent = numberWithCommas(requiredCrystals);
+    const rebirthGain = Math.floor(Math.log10(crystals) * (1 + bonusRebirthPoints / 100));
+    rebirthGainLabel.textContent = rebirthGain;
+    currentRebirthPointsLabel.textContent = rebirthPoints;
+    currentClickBonusLabel.textContent = bonusClickPower;
+    currentProductionBonusLabel.textContent = bonusProduction;
+    currentPointsBonusLabel.textContent = bonusRebirthPoints;
 
     // podmínky odemykání
     const factoryUnlocked = autoclickers >= 10;
@@ -295,12 +392,24 @@
     document.getElementById('row-quantum').classList.toggle('locked', !quantumUnlocked);
 
     upgradeClickPowerBtn.disabled = crystals < priceClickPower;
+
+    // rebirth tlačítka
+    doRebirthBtn.disabled = crystals < requiredCrystals;
+    upgradeClickBonusBtn.disabled = rebirthPoints < 10;
+    upgradeProductionBonusBtn.disabled = rebirthPoints < 10;
+    upgradePointsBonusBtn.disabled = rebirthPoints < 10;
   }
 
   // přepínání shopu
   shopToggle.onclick = () => {
     shop.style.display = shop.style.display === 'none' ? 'block' : 'none';
     shopToggle.textContent = shop.style.display === 'none' ? 'Otevřít obchod' : 'Zavřít obchod';
+  };
+
+  // přepínání rebirth sekce
+  rebirthToggle.onclick = () => {
+    rebirthSection.style.display = rebirthSection.style.display === 'none' ? 'block' : 'none';
+    rebirthToggle.textContent = rebirthSection.style.display === 'none' ? 'Rebirth' : 'Zavřít rebirth';
   };
 
   // přepínání žebříčku
@@ -428,8 +537,28 @@
   // Logout
   logoutBtn.onclick = () => {
     userId = null;
-    crystals = 0; autoclickers = 0; factories = 0; mines = 0; refineries = 0; quantumDrills = 0; clickPower = 1; totalClicks = 0;
-    priceAutoclicker = 5; priceFactory = 50; priceMine = 500; priceRefinery = 5000; priceQuantumDrill = 50000; priceClickPower = 20;
+    crystals = 0; 
+    lifetimeCrystals = 0;
+    autoclickers = 0; 
+    factories = 0; 
+    mines = 0; 
+    refineries = 0; 
+    quantumDrills = 0; 
+    clickPower = 1; 
+    totalClicks = 0;
+    rebirthCount = 0;
+    rebirthPoints = 0;
+    bonusClickPower = 0;
+    bonusProduction = 0;
+    bonusRebirthPoints = 0;
+    
+    priceAutoclicker = 5; 
+    priceFactory = 50; 
+    priceMine = 500; 
+    priceRefinery = 5000; 
+    priceQuantumDrill = 50000; 
+    priceClickPower = 20;
+    
     usernameDisplay.textContent = '';
     logoutBtn.style.display = 'none';
     authButtons.style.display = 'inline-block';
@@ -439,7 +568,9 @@
 
   // Klikání na křišťály
   clickBtn.onclick = () => {
-    crystals += clickPower;
+    const gained = Math.floor(getClickPower());
+    crystals += gained;
+    lifetimeCrystals += gained;
     totalClicks++;
     updateUI();
   };
@@ -509,9 +640,89 @@
     }
   };
 
+  // Rebirth funkce
+  doRebirthBtn.onclick = async () => {
+    const requiredCrystals = 100000 * Math.pow(2, rebirthCount);
+    if (crystals < requiredCrystals) return;
+    
+    try {
+      const response = await fetch('/rebirth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Reset všech hodnot kromě rebirthCount a rebirthPoints
+        crystals = 0;
+        autoclickers = 0;
+        factories = 0;
+        mines = 0;
+        refineries = 0;
+        quantumDrills = 0;
+        clickPower = 1;
+        priceAutoclicker = 5;
+        priceFactory = 50;
+        priceMine = 500;
+        priceRefinery = 5000;
+        priceQuantumDrill = 50000;
+        priceClickPower = 20;
+        
+        rebirthCount = data.rebirthCount;
+        rebirthPoints = data.rebirthPoints;
+        
+        updateUI();
+        alert(`Rebirth úspěšný! Získal jsi ${data.gainedPoints} rebirth bodů!`);
+      } else {
+        alert(data.message || 'Rebirth selhal');
+      }
+    } catch (e) {
+      console.error('Chyba rebirthu:', e);
+      alert('Chyba při rebirthu');
+    }
+  };
+
+  // Upgrade rebirth bonusů
+  async function upgradeRebirthBonus(type) {
+    try {
+      const response = await fetch('/upgrade_rebirth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          user_id: userId,
+          type: type
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        rebirthPoints = data.remainingPoints;
+        if (type === 'click') bonusClickPower = data.newValue;
+        else if (type === 'production') bonusProduction = data.newValue;
+        else bonusRebirthPoints = data.newValue;
+        
+        updateUI();
+      } else {
+        alert(data.message || 'Upgrade selhal');
+      }
+    } catch (e) {
+      console.error('Chyba upgradu:', e);
+      alert('Chyba při upgradu');
+    }
+  }
+
+  upgradeClickBonusBtn.onclick = () => upgradeRebirthBonus('click');
+  upgradeProductionBonusBtn.onclick = () => upgradeRebirthBonus('production');
+  upgradePointsBonusBtn.onclick = () => upgradeRebirthBonus('points');
+
   // Autoprodukce
   setInterval(() => {
-    crystals += getPerSecond();
+    const gained = getPerSecond();
+    crystals += gained;
+    lifetimeCrystals += gained;
     updateUI();
   }, 1000);
 
@@ -530,9 +741,26 @@
 
   async function saveGame() {
     const gameData = {
-      crystals, autoclickers, factories, mines, refineries, quantumDrills,
-      clickPower, totalClicks,
-      priceAutoclicker, priceFactory, priceMine, priceRefinery, priceQuantumDrill, priceClickPower
+      crystals, 
+      lifetime_crystals: lifetimeCrystals,
+      autoclickers, 
+      factories, 
+      mines, 
+      refineries, 
+      quantumDrills,
+      clickPower, 
+      totalClicks,
+      priceAutoclicker, 
+      priceFactory, 
+      priceMine, 
+      priceRefinery, 
+      priceQuantumDrill, 
+      priceClickPower,
+      rebirthCount,
+      rebirthPoints,
+      bonusClickPower,
+      bonusProduction,
+      bonusRebirthPoints
     };
     try {
       const response = await fetch('/save_game', {
@@ -557,6 +785,7 @@
       if (data.success && data.game_data) {
         const gd = data.game_data;
         crystals = gd.crystals || 0;
+        lifetimeCrystals = gd.lifetime_crystals || 0;
         autoclickers = gd.autoclickers || 0;
         factories = gd.factories || 0;
         mines = gd.mines || 0;
@@ -570,6 +799,11 @@
         priceRefinery = gd.priceRefinery || 5000;
         priceQuantumDrill = gd.priceQuantumDrill || 50000;
         priceClickPower = gd.priceClickPower || 20;
+        rebirthCount = gd.rebirthCount || 0;
+        rebirthPoints = gd.rebirthPoints || 0;
+        bonusClickPower = gd.bonusClickPower || 0;
+        bonusProduction = gd.bonusProduction || 0;
+        bonusRebirthPoints = gd.bonusRebirthPoints || 0;
         updateUI();
       }
     } catch(e) {
