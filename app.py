@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, send_from_directory
 import os
 import psycopg
 from psycopg.rows import dict_row
-from psycopg_pool import ConnectionPool
+from psycopg.pool import ConnectionPool
 from flask_cors import CORS
 
 app = Flask(__name__, static_folder='static', static_url_path='')
