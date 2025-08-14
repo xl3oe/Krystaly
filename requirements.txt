@@ -1,5 +1,4 @@
 Flask==2.3.3
-psycopg[binary]==3.2.9
-psycopg-pool==3.2.9
+psycopg2-binary>=2.9.10
 flask-cors==4.0.0
 gunicorn==21.2.0
