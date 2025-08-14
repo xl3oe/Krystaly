@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: crystal-game
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+    
+  - type: pserv
+    name: crystal-game-db
+    env: postgresql
+    plan: free
+    databaseName: crystal_game
+    databaseUser: crystal_user
