@@ -761,43 +761,42 @@
   }
 
   function buyBuilding(buildingType) {
-  const buildingMap = {
-    Autoclicker: 'autoclickers',
-    Factory: 'factories',
-    Mine: 'mines',
-    Refinery: 'refineries',
-    QuantumDrill: 'quantumDrills',
-    MagicWell: 'magicWells',
-    StarForge: 'starForges',
-    TimeAccelerator: 'timeAccelerators',
-    VoidHarvester: 'voidHarvesters'
-  };
+    const buildingMap = {
+      Autoclicker: 'autoclickers',
+      Factory: 'factories',
+      Mine: 'mines',
+      Refinery: 'refineries',
+      QuantumDrill: 'quantumDrills',
+      MagicWell: 'magicWells',
+      StarForge: 'starForges',
+      TimeAccelerator: 'timeAccelerators',
+      VoidHarvester: 'voidHarvesters'
+    };
 
-  const priceKey = `price${buildingType}`;
-  const countKey = buildingMap[buildingType];
+    const priceKey = `price${buildingType}`;
+    const countKey = buildingMap[buildingType];
 
-  if (!countKey) {
-    console.error(`Neznámý typ budovy: ${buildingType}`);
-    return false;
+    if (!countKey) {
+      console.error(`Neznámý typ budovy: ${buildingType}`);
+      return false;
+    }
+
+    if (gameData.crystals < gameData[priceKey]) {
+      showNotification('Nemáš dost křišťálů!', 'warning');
+      return false;
+    }
+
+    gameData.crystals -= gameData[priceKey];
+    gameData[countKey]++;
+
+    // zvýšení ceny o 15 %
+    gameData[priceKey] = Math.floor(gameData[priceKey] * 1.15);
+
+    updateUI();
+    saveGame();
+    showNotification(`Koupil jsi ${buildingType}!`, 'success');
+    return true;
   }
-
-  if (gameData.crystals < gameData[priceKey]) {
-    showNotification('Nemáš dost křišťálů!', 'warning');
-    return false;
-  }
-
-  gameData.crystals -= gameData[priceKey];
-  gameData[countKey]++;
-
-  // zvýšení ceny o 15 %
-  gameData[priceKey] = Math.floor(gameData[priceKey] * 1.15);
-
-  updateUI();
-  saveGame();
-  showNotification(`Koupil jsi ${buildingType}!`, 'success');
-  return true;
-}
-
 
   function upgradeClickPower() {
     if (gameData.crystals < gameData.priceClickPower) {
@@ -819,65 +818,40 @@
   }
 
   // Načtení žebříčku z API a vykreslení do UI
-async function loadLeaderboard(type = 'crystals') {
-  elements.leaderboardContent.innerHTML = '<div class="loading-message">Načítám žebříček...</div>';
-  try {
-    const result = await apiCall(`leaderboard?type=${type}`);
-    if (result.success) {
-      if (!result.leaderboard || result.leaderboard.length === 0) {
-        elements.leaderboardContent.innerHTML = '<div class="error-message">Žádná data pro zobrazení</div>';
-        return;
+  async function loadLeaderboard(type = 'crystals') {
+    elements.leaderboardContent.innerHTML = '<div class="loading-message">Načítám žebříček...</div>';
+    try {
+      const result = await apiCall(`leaderboard?type=${type}`);
+      if (result.success) {
+        if (!result.leaderboard || result.leaderboard.length === 0) {
+          elements.leaderboardContent.innerHTML = '<div class="error-message">Žádná data pro zobrazení</div>';
+          return;
+        }
+
+        const listHTML = result.leaderboard.map((item, index) => {
+          let rankClass = '';
+          if (index === 0) rankClass = 'first';
+          else if (index === 1) rankClass = 'second';
+          else if (index === 2) rankClass = 'third';
+
+          return `
+            <div class="leaderboard-item">
+              <div class="rank ${rankClass}">${index + 1}</div>
+              <div class="username">${item.username}</div>
+              <div class="value">${formatNumber(item.value)}</div>
+            </div>
+          `;
+        }).join('');
+
+        elements.leaderboardContent.innerHTML = listHTML;
+      } else {
+        elements.leaderboardContent.innerHTML = `<div class="error-message">${result.message || 'Chyba načítání žebříčku'}</div>`;
       }
-
-      const listHTML = result.leaderboard.map((item, index) => {
-        let rankClass = '';
-        if (index === 0) rankClass = 'first';
-        else if (index === 1) rankClass = 'second';
-        else if (index === 2) rankClass = 'third';
-
-        return `
-          <div class="leaderboard-item">
-            <div class="rank ${rankClass}">${index + 1}</div>
-            <div class="username">${item.username}</div>
-            <div class="value">${formatNumber(item.value)}</div>
-          </div>
-        `;
-      }).join('');
-
-      elements.leaderboardContent.innerHTML = listHTML;
-    } else {
-      elements.leaderboardContent.innerHTML = `<div class="error-message">${result.message || 'Chyba načítání žebříčku'}</div>`;
+    } catch (error) {
+      elements.leaderboardContent.innerHTML = '<div class="error-message">Chyba spojení se serverem</div>';
+      console.error('Leaderboard load error:', error);
     }
-  } catch (error) {
-    elements.leaderboardContent.innerHTML = '<div class="error-message">Chyba spojení se serverem</div>';
-    console.error('Leaderboard load error:', error);
   }
-}
-
-// Kliknutí na záložku žebříčku
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    loadLeaderboard(btn.dataset.type);
-  });
-});
-
-// Otevření/zavření sekce žebříčku
-elements.leaderboardToggle.addEventListener('click', () => {
-  const isHidden = elements.leaderboard.style.display === 'none' || elements.leaderboard.style.display === '';
-  
-  if (isHidden) {
-    elements.leaderboard.style.display = 'block';
-    const activeTab = document.querySelector('.tab-btn.active') || document.querySelector('.tab-btn');
-    if (activeTab) {
-      loadLeaderboard(activeTab.dataset.type);
-    }
-  } else {
-    elements.leaderboard.style.display = 'none';
-  }
-});
-
 
   // Game loop
   function gameLoop() {
@@ -967,19 +941,18 @@ elements.leaderboardToggle.addEventListener('click', () => {
     elements.rebirthSection.style.display = elements.rebirthSection.style.display === 'none' ? 'block' : 'none';
   });
 
+  // Žebříček toggle - opravená funkce
   elements.leaderboardToggle.addEventListener('click', () => {
-  const isHidden = elements.leaderboard.style.display === 'none' || elements.leaderboard.style.display === '';
-  
-  if (isHidden) {
-    elements.leaderboard.style.display = 'block';
-    const activeTab = document.querySelector('.tab-btn.active') || document.querySelector('.tab-btn');
-    if (activeTab) {
-      loadLeaderboard(activeTab.dataset.type);
+    if (elements.leaderboard.style.display === 'block') {
+      elements.leaderboard.style.display = 'none';
+    } else {
+      elements.leaderboard.style.display = 'block';
+      // Načti aktivní záložku nebo defaultní
+      const activeTab = document.querySelector('.tab-btn.active');
+      const tabType = activeTab ? activeTab.dataset.type : 'crystals';
+      loadLeaderboard(tabType);
     }
-  } else {
-    elements.leaderboard.style.display = 'none';
-  }
-});
+  });
 
   // Building purchase buttons
   elements.buyAutoclickerBtn.addEventListener('click', () => buyBuilding('Autoclicker'));
@@ -1155,7 +1128,7 @@ elements.leaderboardToggle.addEventListener('click', () => {
         showNotification(`Mystery Box: +${reward.amount} ${reward.name}!`, 'success');
       }
     } catch (error) {
-      showNotification(error.message || 'Chyba při otvírání mystery boxu', 'error');
+      showNotification(error.message || 'Chyba při otevírání mystery boxu', 'error');
     }
   });
 
