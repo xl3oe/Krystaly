@@ -99,6 +99,7 @@ def init_database():
                 mines INTEGER DEFAULT 0,
                 refineries INTEGER DEFAULT 0,
                 quantumdrills INTEGER DEFAULT 0,
+                supertokens INTEGER DEFAULT 0,
                 magicwells INTEGER DEFAULT 0,
                 starforges INTEGER DEFAULT 0,
                 timeaccelerators INTEGER DEFAULT 0,
@@ -694,6 +695,63 @@ def rebirth():
         logger.error(f"Chyba v rebirth: {e}")
         return jsonify({'success': False, 'message': 'Chyba serveru'}), 500
 
+@app.route('/super_rebirth', methods=['POST'])
+def super_rebirth():
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+
+        if not user_id:
+            return jsonify({'success': False, 'message': 'Chybí user_id'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT rebirthcount, rebirthpoints, supertokens FROM crystal_game_data WHERE id = %s", (user_id,))
+        row = cursor.fetchone()
+        if not row:
+            return jsonify({'success': False, 'message': 'Hráč nenalezen'}), 404
+
+        rebirth_count = int(row['rebirthcount'] or 0)
+        rebirth_points = int(row['rebirthpoints'] or 0)
+
+        # Podmínky pro super rebirth
+        min_rebirths = 5
+        cost_points = 50
+
+        if rebirth_count < min_rebirths:
+            return jsonify({'success': False, 'message': f'Potřebuješ alespoň {min_rebirths} rebirthů!'}), 400
+        if rebirth_points < cost_points:
+            return jsonify({'success': False, 'message': f'Potřebuješ {cost_points} rebirth bodů!'}), 400
+
+        # Odečíst body a přidat super token
+        cursor.execute("""
+            UPDATE crystal_game_data
+            SET rebirthpoints = rebirthpoints - %s,
+                supertokens = supertokens + 1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+            RETURNING rebirthpoints, supertokens
+        """, (cost_points, user_id))
+
+        result = cursor.fetchone()
+        conn.commit()
+
+        return jsonify({
+            'success': True,
+            'remainingPoints': result['rebirthpoints'],
+            'superTokens': result['supertokens']
+        })
+
+    except Exception as e:
+        logger.error(f"Chyba při super rebirthu: {e}")
+        conn.rollback()
+        return jsonify({'success': False, 'message': 'Chyba při super rebirthu'}), 500
+    finally:
+        cursor.close()
+        return_db_connection(conn)
+
+
 # Upgrade rebirth bonusů
 @app.route('/upgrade_rebirth', methods=['POST'])
 def upgrade_rebirth():
@@ -739,8 +797,6 @@ def upgrade_rebirth():
                 update_field = 'bonusclickpower'
             elif bonus_type == 'production':
                 update_field = 'bonusproduction'
-            else:  # points
-                update_field = 'bonusrebirthpoints'
             
             cursor.execute(f"""
                 UPDATE crystal_game_data SET
@@ -769,6 +825,60 @@ def upgrade_rebirth():
     except Exception as e:
         logger.error(f"Chyba v upgrade rebirth: {e}")
         return jsonify({'success': False, 'message': 'Chyba serveru'}), 500
+
+@app.route('/upgrade_super', methods=['POST'])
+def upgrade_super():
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        upgrade_type = data.get('type')
+
+        if not user_id:
+            return jsonify({'success': False, 'message': 'Chybí user_id'}), 400
+        if upgrade_type not in ['points']:  # Zatím jen bonus rebirth points
+            return jsonify({'success': False, 'message': 'Neplatný typ upgradu'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT supertokens, bonusrebirthpoints FROM crystal_game_data WHERE id = %s", (user_id,))
+        row = cursor.fetchone()
+        if not row:
+            return jsonify({'success': False, 'message': 'Hráč nenalezen'}), 404
+
+        super_tokens = int(row['supertokens'] or 0)
+        cost = 1  # Cena v supertokenech
+
+        if super_tokens < cost:
+            return jsonify({'success': False, 'message': 'Nemáš dost super tokenů!'}), 400
+
+        update_field = 'bonusrebirthpoints'
+        cursor.execute(f"""
+            UPDATE crystal_game_data
+            SET {update_field} = {update_field} + 1,
+                supertokens = supertokens - %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+            RETURNING {update_field}, supertokens
+        """, (cost, user_id))
+
+        result = cursor.fetchone()
+        conn.commit()
+
+        return jsonify({
+            'success': True,
+            'newValue': result[update_field],
+            'remainingTokens': result['supertokens']
+        })
+
+    except Exception as e:
+        logger.error(f"Chyba při super upgrade: {e}")
+        conn.rollback()
+        return jsonify({'success': False, 'message': 'Chyba při super upgrade'}), 500
+    finally:
+        cursor.close()
+        return_db_connection(conn)
+
 
 # Endpoint pro žebříček
 @app.route('/leaderboard')
