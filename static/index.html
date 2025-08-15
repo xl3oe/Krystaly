@@ -818,34 +818,62 @@
     return true;
   }
 
-  async function loadLeaderboard(type = 'crystals') {
-    try {
-      elements.leaderboardContent.innerHTML = '<div class="loading-message">Načítám žebříček...</div>';
-      
-      const result = await apiCall(`leaderboard?type=${type}`);
-      if (result.success) {
-        let html = '';
-        result.leaderboard.forEach(player => {
-          const rankClass = player.rank === 1 ? 'first' : player.rank === 2 ? 'second' : player.rank === 3 ? 'third' : '';
-          html += `
-            <div class="leaderboard-item">
-              <div class="rank ${rankClass}">${player.rank}.</div>
-              <div class="username">${player.username}</div>
-              <div class="value">${formatNumber(player.value)}</div>
-            </div>
-          `;
-        });
-        
-        if (html === '') {
-          html = '<div class="error-message">Žádní hráči v žebříčku</div>';
-        }
-        
-        elements.leaderboardContent.innerHTML = html;
+  // Načtení žebříčku z API a vykreslení do UI
+async function loadLeaderboard(type = 'crystals') {
+  elements.leaderboardContent.innerHTML = '<div class="loading-message">Načítám žebříček...</div>';
+  try {
+    const result = await apiCall(`leaderboard?type=${type}`);
+    if (result.success) {
+      if (!result.leaderboard || result.leaderboard.length === 0) {
+        elements.leaderboardContent.innerHTML = '<div class="error-message">Žádná data pro zobrazení</div>';
+        return;
       }
-    } catch (error) {
-      elements.leaderboardContent.innerHTML = '<div class="error-message">Chyba při načítání žebříčku</div>';
+
+      const listHTML = result.leaderboard.map((item, index) => {
+        let rankClass = '';
+        if (index === 0) rankClass = 'first';
+        else if (index === 1) rankClass = 'second';
+        else if (index === 2) rankClass = 'third';
+
+        return `
+          <div class="leaderboard-item">
+            <div class="rank ${rankClass}">${index + 1}</div>
+            <div class="username">${item.username}</div>
+            <div class="value">${formatNumber(item.value)}</div>
+          </div>
+        `;
+      }).join('');
+
+      elements.leaderboardContent.innerHTML = listHTML;
+    } else {
+      elements.leaderboardContent.innerHTML = `<div class="error-message">${result.message || 'Chyba načítání žebříčku'}</div>`;
     }
+  } catch (error) {
+    elements.leaderboardContent.innerHTML = '<div class="error-message">Chyba spojení se serverem</div>';
+    console.error('Leaderboard load error:', error);
   }
+}
+
+// Kliknutí na záložku žebříčku
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadLeaderboard(btn.dataset.type);
+  });
+});
+
+// Otevření/zavření sekce žebříčku
+elements.leaderboardToggle.addEventListener('click', () => {
+  if (elements.leaderboard.style.display === 'none' || elements.leaderboard.style.display === '') {
+    elements.leaderboard.style.display = 'block';
+    const activeTab = document.querySelector('.tab-btn.active');
+    loadLeaderboard(activeTab.dataset.type);
+  } else {
+    elements.leaderboard.style.display = 'none';
+  }
+});
+
 
   // Game loop
   function gameLoop() {
