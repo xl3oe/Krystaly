@@ -761,26 +761,43 @@
   }
 
   function buyBuilding(buildingType) {
-    const priceKey = `price${buildingType}`;
-    const countKey = buildingType.toLowerCase();
-    
-    if (gameData.crystals < gameData[priceKey]) {
-      showNotification('Nemáš dost křišťálů!', 'warning');
-      return false;
-    }
-    
-    gameData.crystals -= gameData[priceKey];
-    gameData[countKey]++;
-    
-    // Zvýšení ceny o 15% s každým nákupem
-    gameData[priceKey] = Math.floor(gameData[priceKey] * 1.15);
-    
-    updateUI();
-    // OKAMŽITÉ ULOŽENÍ po nákupu
-    saveGame();
-    showNotification(`Koupil jsi ${buildingType}!`, 'success');
-    return true;
+  const buildingMap = {
+    Autoclicker: 'autoclickers',
+    Factory: 'factories',
+    Mine: 'mines',
+    Refinery: 'refineries',
+    QuantumDrill: 'quantumDrills',
+    MagicWell: 'magicWells',
+    StarForge: 'starForges',
+    TimeAccelerator: 'timeAccelerators',
+    VoidHarvester: 'voidHarvesters'
+  };
+
+  const priceKey = `price${buildingType}`;
+  const countKey = buildingMap[buildingType];
+
+  if (!countKey) {
+    console.error(`Neznámý typ budovy: ${buildingType}`);
+    return false;
   }
+
+  if (gameData.crystals < gameData[priceKey]) {
+    showNotification('Nemáš dost křišťálů!', 'warning');
+    return false;
+  }
+
+  gameData.crystals -= gameData[priceKey];
+  gameData[countKey]++;
+
+  // zvýšení ceny o 15 %
+  gameData[priceKey] = Math.floor(gameData[priceKey] * 1.15);
+
+  updateUI();
+  saveGame();
+  showNotification(`Koupil jsi ${buildingType}!`, 'success');
+  return true;
+}
+
 
   function upgradeClickPower() {
     if (gameData.crystals < gameData.priceClickPower) {
