@@ -58,6 +58,25 @@
     .luck-stat { color: #FFD700; font-weight: bold; }
     .mystery-box { color: #DA70D6; font-weight: bold; }
 
+    /* Golden Crystal */
+    .golden-crystal { 
+      position: fixed; 
+      width: 50px; 
+      height: 50px; 
+      background: radial-gradient(circle, #FFD700, #FFA500); 
+      border-radius: 50%; 
+      cursor: pointer; 
+      z-index: 1000; 
+      animation: pulse 2s infinite, float 3s ease-in-out infinite;
+      box-shadow: 0 0 20px #FFD700;
+    }
+    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+    @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
+
+    /* Offline bonus */
+    .offline-bonus { background: rgba(76, 175, 80, 0.9); color: white; padding: 20px; border-radius: 10px; margin: 15px 0; }
+    .offline-bonus h3 { margin-top: 0; color: #4CAF50; }
+
     /* Žebříček */
     #leaderboardToggle { margin-top: 10px; background: #FF9800; }
     #leaderboard { margin-top: 15px; background: rgba(0,0,0,0.6); border-radius: 10px; padding: 12px; display: none; text-align: left; }
@@ -82,6 +101,13 @@
     .notification.warning { border-left: 4px solid #FF9800; }
     .notification.info { border-left: 4px solid #2196F3; }
     .notification.error { border-left: 4px solid #f44336; }
+
+    /* Progress bars pro upgrades */
+    .progress-bar { background: rgba(255,255,255,0.2); border-radius: 10px; height: 8px; margin-top: 5px; overflow: hidden; }
+    .progress-fill { background: #4CAF50; height: 100%; border-radius: 10px; transition: width 0.3s ease; }
+
+    /* Achievements */
+    .achievement-popup { position: fixed; bottom: 20px; right: 20px; background: rgba(255, 215, 0, 0.95); color: #333; padding: 15px; border-radius: 8px; z-index: 1001; display: none; }
   </style>
 </head>
 <body>
@@ -114,11 +140,20 @@
 </div>
 
 <div id="notification" class="notification"></div>
+<div id="achievementPopup" class="achievement-popup"></div>
 
 <main>
   <h1>Křišťálová hra</h1>
   <p id="crystalsCount">Křišťály: 0</p>
   <p id="lifetimeCrystals" class="muted">Celkem křišťálů: 0</p>
+
+  <!-- Offline bonus -->
+  <div id="offlineBonus" class="offline-bonus" style="display: none;">
+    <h3>🎁 Offline Bonus!</h3>
+    <p>Zatímco jsi byl pryč (<span id="offlineHours">0</span>h), tvoje budovy vyprodukovaly:</p>
+    <p><strong>+<span id="offlineCrystals">0</span> křišťálů</strong></p>
+    <button onclick="this.parentElement.style.display='none'" class="gameBtn">OK</button>
+  </div>
 
   <div class="stats">
     <p>Autoklikery: <span id="autoclickersCount">0</span> <span class="muted">(+1/s každý)</span></p>
@@ -137,7 +172,7 @@
 
   <!-- Luck System -->
   <div id="luckSection">
-    <p><span class="luck-stat">Luck Level: <span id="luckLevel">0</span></span> | <span class="mystery-box">Mystery Boxy: <span id="mysteryBoxes">0</span></span></p>
+    <p><span class="luck-stat">Luck Level: <span id="luckLevel">0</span></span> | <span class="mystery-box">Mystery Boxy: <span id="mysteryBoxes">0</span></span> | <span style="color: #FFD700;">🌟 Golden Crystals: <span id="goldenCrystals">0</span></span></p>
     <button id="claimLuckBtn" class="gameBtn special-btn">Získat Luck Bonus (1h cooldown)</button>
     <button id="openMysteryBoxBtn" class="gameBtn special-btn" disabled>Otevřít Mystery Box</button>
   </div>
@@ -150,7 +185,7 @@
   <div id="shop">
     <div class="shop-row" id="row-autoclicker">
       <div><strong>Autokliker</strong> <span class="muted">(+1/s)</span></div>
-      <div>Cena: <span id="priceAutoclickerLabel">5</span></div>
+      <div>Cena: <span id="priceAutoclickerLabel">15</span></div>
       <div>Máš: <span id="autoclickersOwned">0</span></div>
       <div class="req"></div>
       <button id="buyAutoclickerBtn" class="gameBtn">Koupit</button>
@@ -158,7 +193,7 @@
 
     <div class="shop-row" id="row-factory">
       <div><strong>Továrna</strong> <span class="muted">(+5/s)</span></div>
-      <div>Cena: <span id="priceFactoryLabel">50</span></div>
+      <div>Cena: <span id="priceFactoryLabel">100</span></div>
       <div>Máš: <span id="factoriesOwned">0</span></div>
       <div class="req" id="factoryReq">Vyžaduje 10 autoklikerů</div>
       <button id="buyFactoryBtn" class="gameBtn">Koupit</button>
@@ -166,7 +201,7 @@
 
     <div class="shop-row" id="row-mine">
       <div><strong>Důl</strong> <span class="muted">(+50/s)</span></div>
-      <div>Cena: <span id="priceMineLabel">500</span></div>
+      <div>Cena: <span id="priceMineLabel">1,100</span></div>
       <div>Máš: <span id="minesOwned">0</span></div>      
       <div class="req" id="mineReq">Vyžaduje 5 továren</div>
       <button id="buyMineBtn" class="gameBtn">Koupit</button>
@@ -174,7 +209,7 @@
 
     <div class="shop-row" id="row-refinery">
       <div><strong>Rafinerie</strong> <span class="muted">(+200/s)</span></div>
-      <div>Cena: <span id="priceRefineryLabel">5000</span></div>
+      <div>Cena: <span id="priceRefineryLabel">12,000</span></div>
       <div>Máš: <span id="refineriesOwned">0</span></div>
       <div class="req" id="refineryReq">Vyžaduje 3 doly</div>
       <button id="buyRefineryBtn" class="gameBtn">Koupit</button>
@@ -182,7 +217,7 @@
 
     <div class="shop-row" id="row-quantum">
       <div><strong>Kvantová vrtačka</strong> <span class="muted">(+1K/s)</span></div>
-      <div>Cena: <span id="priceQuantumLabel">50000</span></div>
+      <div>Cena: <span id="priceQuantumLabel">130,000</span></div>
       <div>Máš: <span id="quantumOwned">0</span></div>
       <div class="req" id="quantumReq">Vyžaduje 2 rafinerie</div>
       <button id="buyQuantumBtn" class="gameBtn">Koupit</button>
@@ -191,7 +226,7 @@
     <!-- Nové legendární budovy -->
     <div class="shop-row legendary" id="row-magicwell">
       <div><strong>⭐ Magická studna</strong> <span class="muted">(+5K/s)</span></div>
-      <div>Cena: <span id="priceMagicWellLabel">500000</span></div>
+      <div>Cena: <span id="priceMagicWellLabel">1,400,000</span></div>
       <div>Máš: <span id="magicWellsOwned">0</span></div>
       <div class="req" id="magicWellReq">Vyžaduje 5 kvantových vrtaček</div>
       <button id="buyMagicWellBtn" class="gameBtn">Koupit</button>
@@ -199,7 +234,7 @@
 
     <div class="shop-row legendary" id="row-starforge">
       <div><strong>⭐ Hvězdná kovárna</strong> <span class="muted">(+25K/s)</span></div>
-      <div>Cena: <span id="priceStarForgeLabel">5000000</span></div>
+      <div>Cena: <span id="priceStarForgeLabel">20,000,000</span></div>
       <div>Máš: <span id="starForgesOwned">0</span></div>
       <div class="req" id="starForgeReq">Vyžaduje 3 magické studny</div>
       <button id="buyStarForgeBtn" class="gameBtn">Koupit</button>
@@ -208,7 +243,7 @@
     <!-- Nové mytické budovy -->
     <div class="shop-row mythic" id="row-timeaccelerator">
       <div><strong>🌟 Časový akcelerátor</strong> <span class="muted">(+100K/s)</span></div>
-      <div>Cena: <span id="priceTimeAcceleratorLabel">50000000</span></div>
+      <div>Cena: <span id="priceTimeAcceleratorLabel">330,000,000</span></div>
       <div>Máš: <span id="timeAcceleratorsOwned">0</span></div>
       <div class="req" id="timeAcceleratorReq">Vyžaduje 2 hvězdné kovárny</div>
       <button id="buyTimeAcceleratorBtn" class="gameBtn">Koupit</button>
@@ -216,7 +251,7 @@
 
     <div class="shop-row mythic" id="row-voidharvester">
       <div><strong>🌟 Prázdnotní žněč</strong> <span class="muted">(+500K/s)</span></div>
-      <div>Cena: <span id="priceVoidHarvesterLabel">1000000000</span></div>
+      <div>Cena: <span id="priceVoidHarvesterLabel">5,100,000,000</span></div>
       <div>Máš: <span id="voidHarvestersOwned">0</span></div>
       <div class="req" id="voidHarvesterReq">Vyžaduje 2 časové akcelerátory</div>
       <button id="buyVoidHarvesterBtn" class="gameBtn">Koupit</button>
@@ -224,7 +259,7 @@
 
     <div class="shop-row" id="row-clickpower">
       <div><strong>Vylepšit klik</strong> <span class="muted">(+1 k síle kliku)</span></div>
-      <div>Cena: <span id="priceClickPowerLabel">20</span></div>
+      <div>Cena: <span id="priceClickPowerLabel">100</span></div>
       <div>Aktuálně: <span id="clickPowerOwned">1</span></div>
       <div class="req"></div>
       <button id="upgradeClickPowerBtn" class="gameBtn">Vylepšit</button>
@@ -235,9 +270,9 @@
   <div id="rebirthSection">
     <h3>Rebirth Mechanika</h3>
     <p>Rebirth resetuje tvůj postup, ale získáš <span class="rebirth-points">Rebirth body</span> pro trvalé bonusy!</p>
-    <p>Potřebuješ: <span id="rebirthRequired" class="rebirth-cost">100,000</span> křišťálů</p>
+    <p>Potřebuješ: <span id="rebirthRequired" class="rebirth-cost">1,000,000</span> křišťálů</p>
     <p>Získáš: ~<span id="rebirthGain" class="rebirth-points">0</span> bodů + možnost Luck Level!</p>
-    <button id="doRebirthBtn" class="gameBtn rebirth-btn" disabled>Proved Rebirth</button>
+    <button id="doRebirthBtn" class="gameBtn rebirth-btn" disabled>Proveď Rebirth</button>
     
     <h3>Rebirth Bonusy</h3>
     <p>Máš: <span id="currentRebirthPoints" class="rebirth-points">0</span> bodů</p>
@@ -290,7 +325,7 @@
   // API BASE URL - automaticky detekuje, pokud je lokální nebo na serveru
   const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:5000' : '';
 
-  // Game state
+  // Game state - nové vyšší základní ceny
   let gameData = {
     userId: null,
     crystals: 0,
@@ -306,16 +341,16 @@
     voidHarvesters: 0,
     clickPower: 1,
     totalClicks: 0,
-    priceAutoclicker: 5,
-    priceFactory: 50,
-    priceMine: 500,
-    priceRefinery: 5000,
-    priceQuantumDrill: 50000,
-    priceMagicWell: 500000,
-    priceStarForge: 5000000,
-    priceTimeAccelerator: 50000000,
-    priceVoidHarvester: 1000000000,
-    priceClickPower: 20,
+    priceAutoclicker: 15,        // z 5
+    priceFactory: 100,           // z 50
+    priceMine: 1100,             // z 500
+    priceRefinery: 12000,        // z 5000
+    priceQuantumDrill: 130000,   // z 50000
+    priceMagicWell: 1400000,     // z 500000
+    priceStarForge: 20000000,    // z 5000000
+    priceTimeAccelerator: 330000000,  // z 50000000
+    priceVoidHarvester: 5100000000,   // z 1000000000
+    priceClickPower: 100,        // z 20
     rebirthCount: 0,
     rebirthPoints: 0,
     bonusClickPower: 0,
@@ -323,6 +358,7 @@
     bonusRebirthPoints: 0,
     luckLevel: 0,
     mysteryBoxes: 0,
+    goldenCrystals: 0,
     lastLuckBonus: null
   };
 
@@ -359,6 +395,7 @@
     rebirthPoints: document.getElementById('rebirthPoints'),
     luckLevel: document.getElementById('luckLevel'),
     mysteryBoxes: document.getElementById('mysteryBoxes'),
+    goldenCrystals: document.getElementById('goldenCrystals'),
     perClick: document.getElementById('perClick'),
     perSecond: document.getElementById('perSecond'),
     clickBtn: document.getElementById('clickBtn'),
@@ -410,11 +447,16 @@
     openMysteryBoxBtn: document.getElementById('openMysteryBoxBtn'),
     leaderboardToggle: document.getElementById('leaderboardToggle'),
     leaderboard: document.getElementById('leaderboard'),
-    leaderboardContent: document.getElementById('leaderboardContent')
+    leaderboardContent: document.getElementById('leaderboardContent'),
+    offlineBonus: document.getElementById('offlineBonus'),
+    offlineHours: document.getElementById('offlineHours'),
+    offlineCrystals: document.getElementById('offlineCrystals'),
+    achievementPopup: document.getElementById('achievementPopup')
   };
 
   // Automatické ukládání - rychlejší frekvence pro lepší UX
   let autoSaveInterval = null;
+  let goldenCrystalTimeout = null;
 
   // API functions
   async function apiCall(endpoint, method = 'GET', data = null) {
@@ -474,6 +516,9 @@
         
         // Spuštění pravidelného ukládání - každé 3 sekundy pro lepší UX
         startAutoSave();
+        
+        // Spuštění golden crystal systému
+        scheduleGoldenCrystal();
       }
     } catch (error) {
       showNotification(error.message || 'Chyba při přihlašování', 'error');
@@ -485,6 +530,15 @@
       const result = await apiCall(`load_game?user_id=${gameData.userId}`);
       if (result.success) {
         Object.assign(gameData, result.game_data);
+        
+        // Kontrola offline bonusu
+        if (result.game_data.offline_bonus) {
+          const bonus = result.game_data.offline_bonus;
+          elements.offlineHours.textContent = bonus.hours.toFixed(1);
+          elements.offlineCrystals.textContent = formatNumber(bonus.crystals);
+          elements.offlineBonus.style.display = 'block';
+        }
+        
         updateUI();
         showNotification('Hra načtena!', 'info');
       }
@@ -519,6 +573,7 @@
     saveGame(); // Uložit před odhlášením
     
     if (autoSaveInterval) clearInterval(autoSaveInterval);
+    if (goldenCrystalTimeout) clearTimeout(goldenCrystalTimeout);
     
     gameData.userId = null;
     Object.assign(gameData, {
@@ -535,23 +590,24 @@
       voidHarvesters: 0,
       clickPower: 1,
       totalClicks: 0,
-      priceAutoclicker: 5,
-      priceFactory: 50,
-      priceMine: 500,
-      priceRefinery: 5000,
-      priceQuantumDrill: 50000,
-      priceMagicWell: 500000,
-      priceStarForge: 5000000,
-      priceTimeAccelerator: 50000000,
-      priceVoidHarvester: 1000000000,
-      priceClickPower: 20,
+      priceAutoclicker: 15,
+      priceFactory: 100,
+      priceMine: 1100,
+      priceRefinery: 12000,
+      priceQuantumDrill: 130000,
+      priceMagicWell: 1400000,
+      priceStarForge: 20000000,
+      priceTimeAccelerator: 330000000,
+      priceVoidHarvester: 5100000000,
+      priceClickPower: 100,
       rebirthCount: 0,
       rebirthPoints: 0,
       bonusClickPower: 0,
       bonusProduction: 0,
       bonusRebirthPoints: 0,
       luckLevel: 0,
-      mysteryBoxes: 0
+      mysteryBoxes: 0,
+      goldenCrystals: 0
     });
     
     elements.usernameDisplay.textContent = '';
@@ -560,6 +616,50 @@
     
     updateUI();
     showNotification('Odhlášení úspěšné', 'success');
+  }
+
+  // Golden Crystal system
+  function scheduleGoldenCrystal() {
+    if (!gameData.userId) return;
+    
+    // Náhodný interval 5-15 minut
+    const interval = Math.random() * 600000 + 300000; // 5-15 min
+    
+    goldenCrystalTimeout = setTimeout(() => {
+      spawnGoldenCrystal();
+      scheduleGoldenCrystal(); // Naplánovat další
+    }, interval);
+  }
+
+  function spawnGoldenCrystal() {
+    const crystal = document.createElement('div');
+    crystal.className = 'golden-crystal';
+    crystal.style.left = Math.random() * (window.innerWidth - 50) + 'px';
+    crystal.style.top = Math.random() * (window.innerHeight - 50) + 'px';
+    
+    crystal.addEventListener('click', async () => {
+      crystal.remove();
+      
+      try {
+        const result = await apiCall('claim_golden_crystal', 'POST', { user_id: gameData.userId });
+        if (result.success) {
+          gameData.goldenCrystals = result.golden_crystals;
+          updateUI();
+          showNotification('🌟 Získal jsi Golden Crystal!', 'success');
+        }
+      } catch (error) {
+        showNotification('Chyba při získávání Golden Crystal', 'error');
+      }
+    });
+    
+    document.body.appendChild(crystal);
+    
+    // Automaticky zmizí po 10 sekundách
+    setTimeout(() => {
+      if (crystal.parentElement) {
+        crystal.remove();
+      }
+    }, 10000);
   }
 
   // Game functions
@@ -581,6 +681,11 @@
     elements.clickPowerCount.textContent = gameData.clickPower;
     elements.rebirthCount.textContent = gameData.rebirthCount;
     elements.rebirthPoints.textContent = gameData.rebirthPoints;
+    
+    // Update luck system and golden crystals
+    elements.luckLevel.textContent = gameData.luckLevel;
+    elements.mysteryBoxes.textContent = gameData.mysteryBoxes;
+    elements.goldenCrystals.textContent = gameData.goldenCrystals || 0;
     
     // Update click power and CPS
     const effectiveClickPower = Math.floor(gameData.clickPower * (1 + gameData.bonusClickPower / 100));
@@ -610,10 +715,11 @@
     elements.voidHarvestersOwned.textContent = gameData.voidHarvesters;
     elements.clickPowerOwned.textContent = gameData.clickPower;
     
-    // Update rebirth section
-    const requiredRebirth = 100000 * Math.pow(2, gameData.rebirthCount);
+    // Update rebirth section - vyšší požadavky
+    const requiredRebirth = 1000000 * Math.pow(3, gameData.rebirthCount); // Exponenciálně těžší
     elements.rebirthRequired.textContent = formatNumber(requiredRebirth);
-    const rebirthGain = gameData.crystals > 0 ? Math.floor(Math.log10(gameData.crystals) * (1 + gameData.bonusRebirthPoints/100)) : 0;
+    const rebirthGain = gameData.crystals > 100000 ? 
+      Math.floor((Math.log10(gameData.crystals / 100000) + gameData.crystals / 10_000_000) * (1 + gameData.bonusRebirthPoints/100)) : 0;
     elements.rebirthGain.textContent = rebirthGain;
     elements.doRebirthBtn.disabled = gameData.crystals < requiredRebirth;
     
@@ -626,9 +732,6 @@
     elements.upgradeProductionBonusBtn.disabled = gameData.rebirthPoints < 10;
     elements.upgradePointsBonusBtn.disabled = gameData.rebirthPoints < 10;
     
-    // Update luck system
-    elements.luckLevel.textContent = gameData.luckLevel;
-    elements.mysteryBoxes.textContent = gameData.mysteryBoxes;
     elements.openMysteryBoxBtn.disabled = gameData.mysteryBoxes <= 0;
     
     // Update building requirements
@@ -737,14 +840,17 @@
   }
 
   function formatNumber(num) {
-    if (num >= 1000000000) {
-      return (num / 1000000000).toFixed(2) + 'B';
+    if (num >= 1e12) {
+      return (num / 1e12).toFixed(2) + 'T';
     }
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(2) + 'M';
+    if (num >= 1e9) {
+      return (num / 1e9).toFixed(2) + 'B';
     }
-    if (num >= 1000) {
-      return (num / 1000).toFixed(2) + 'K';
+    if (num >= 1e6) {
+      return (num / 1e6).toFixed(2) + 'M';
+    }
+    if (num >= 1e3) {
+      return (num / 1e3).toFixed(2) + 'K';
     }
     return Math.floor(num).toString();
   }
@@ -761,43 +867,51 @@
   }
 
   function buyBuilding(buildingType) {
-  const buildingMap = {
-    Autoclicker: 'autoclickers',
-    Factory: 'factories',
-    Mine: 'mines',
-    Refinery: 'refineries',
-    QuantumDrill: 'quantumDrills',
-    MagicWell: 'magicWells',
-    StarForge: 'starForges',
-    TimeAccelerator: 'timeAccelerators',
-    VoidHarvester: 'voidHarvesters'
-  };
+    const buildingMap = {
+      Autoclicker: 'autoclickers',
+      Factory: 'factories',
+      Mine: 'mines',
+      Refinery: 'refineries',
+      QuantumDrill: 'quantumDrills',
+      MagicWell: 'magicWells',
+      StarForge: 'starForges',
+      TimeAccelerator: 'timeAccelerators',
+      VoidHarvester: 'voidHarvesters'
+    };
 
-  const priceKey = `price${buildingType}`;
-  const countKey = buildingMap[buildingType];
+    const priceKey = `price${buildingType}`;
+    const countKey = buildingMap[buildingType];
 
-  if (!countKey) {
-    console.error(`Neznámý typ budovy: ${buildingType}`);
-    return false;
+    if (!countKey) {
+      console.error(`Neznámý typ budovy: ${buildingType}`);
+      return false;
+    }
+
+    if (gameData.crystals < gameData[priceKey]) {
+      showNotification('Nemáš dost křišťálů!', 'warning');
+      return false;
+    }
+
+    gameData.crystals -= gameData[priceKey];
+    gameData[countKey]++;
+
+    // Zvýšení ceny - více exponenciální růst podobně jako Cookie Clicker
+    const multiplier = buildingType === 'Autoclicker' ? 1.15 : 
+                     buildingType === 'Factory' ? 1.15 :
+                     buildingType === 'Mine' ? 1.15 :
+                     buildingType === 'Refinery' ? 1.15 :
+                     buildingType === 'QuantumDrill' ? 1.15 :
+                     buildingType === 'MagicWell' ? 1.15 :
+                     buildingType === 'StarForge' ? 1.15 :
+                     buildingType === 'TimeAccelerator' ? 1.15 : 1.15;
+
+    gameData[priceKey] = Math.floor(gameData[priceKey] * multiplier);
+
+    updateUI();
+    saveGame();
+    showNotification(`Koupil jsi ${buildingType}!`, 'success');
+    return true;
   }
-
-  if (gameData.crystals < gameData[priceKey]) {
-    showNotification('Nemáš dost křišťálů!', 'warning');
-    return false;
-  }
-
-  gameData.crystals -= gameData[priceKey];
-  gameData[countKey]++;
-
-  // zvýšení ceny o 15 %
-  gameData[priceKey] = Math.floor(gameData[priceKey] * 1.15);
-
-  updateUI();
-  saveGame();
-  showNotification(`Koupil jsi ${buildingType}!`, 'success');
-  return true;
-}
-
 
   function upgradeClickPower() {
     if (gameData.crystals < gameData.priceClickPower) {
@@ -808,11 +922,10 @@
     gameData.crystals -= gameData.priceClickPower;
     gameData.clickPower++;
     
-    // Zvýšení ceny o 20% s každým vylepšením
-    gameData.priceClickPower = Math.floor(gameData.priceClickPower * 1.2);
+    // Exponenciální růst ceny - více podobně Cookie Clickeru
+    gameData.priceClickPower = Math.floor(gameData.priceClickPower * 1.5);
     
     updateUI();
-    // OKAMŽITÉ ULOŽENÍ po vylepšení
     saveGame();
     showNotification('Vylepšil jsi sílu kliku!', 'success');
     return true;
@@ -977,16 +1090,16 @@
           timeAccelerators: 0,
           voidHarvesters: 0,
           clickPower: 1,
-          priceAutoclicker: 5,
-          priceFactory: 50,
-          priceMine: 500,
-          priceRefinery: 5000,
-          priceQuantumDrill: 50000,
-          priceMagicWell: 500000,
-          priceStarForge: 5000000,
-          priceTimeAccelerator: 50000000,
-          priceVoidHarvester: 1000000000,
-          priceClickPower: 20,
+          priceAutoclicker: 15,
+          priceFactory: 100,
+          priceMine: 1100,
+          priceRefinery: 12000,
+          priceQuantumDrill: 130000,
+          priceMagicWell: 1400000,
+          priceStarForge: 20000000,
+          priceTimeAccelerator: 330000000,
+          priceVoidHarvester: 5100000000,
+          priceClickPower: 100,
           rebirthCount: result.rebirthCount,
           rebirthPoints: result.rebirthPoints,
           luckLevel: result.luckLevel
@@ -1113,10 +1226,10 @@
         }
         
         updateUI();
-        showNotification(`Mystery Box: +${reward.amount} ${reward.name}!`, 'success');
+        showNotification(`Mystery Box: +${formatNumber(reward.amount)} ${reward.name}!`, 'success');
       }
     } catch (error) {
-      showNotification(error.message || 'Chyba při otvírání mystery boxu', 'error');
+      showNotification(error.message || 'Chyba při otevírání mystery boxu', 'error');
     }
   });
 
