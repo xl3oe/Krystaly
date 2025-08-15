@@ -638,7 +638,7 @@ def rebirth():
                 rebirth_points = 1
             
             # Šance na luck level (10% za rebirth)
-            luck_gained = 1 if random.randint(1, 100) <= 10 else 0
+            luck_gained = 1 if random.randint(1, 100) <= 35 else 0
 
             # Reset hráče + přidání bonusů
             cursor.execute("""
