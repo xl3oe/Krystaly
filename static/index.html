@@ -865,10 +865,14 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
 // Otevření/zavření sekce žebříčku
 elements.leaderboardToggle.addEventListener('click', () => {
-  if (elements.leaderboard.style.display === 'none' || elements.leaderboard.style.display === '') {
+  const isHidden = elements.leaderboard.style.display === 'none' || elements.leaderboard.style.display === '';
+  
+  if (isHidden) {
     elements.leaderboard.style.display = 'block';
-    const activeTab = document.querySelector('.tab-btn.active');
-    loadLeaderboard(activeTab.dataset.type);
+    const activeTab = document.querySelector('.tab-btn.active') || document.querySelector('.tab-btn');
+    if (activeTab) {
+      loadLeaderboard(activeTab.dataset.type);
+    }
   } else {
     elements.leaderboard.style.display = 'none';
   }
