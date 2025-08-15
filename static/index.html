@@ -611,19 +611,21 @@
     
     const cps = calculateCPS();
     if (cps > 0) {
-      gameData.crystals += cps / 10; // Update 10 times per second
+      gameData.crystals += cps / 10;
       gameData.lifetime_crystals += cps / 10;
       updateUI();
     }
     
-    // Auto-save every 30 seconds
+    // Automatické ukládání každých 30 sekund
     if (Date.now() - lastSaveTime > 30000) {
       saveGame();
       lastSaveTime = Date.now();
     }
   }
 
-  // API functions
+  // API FUNKCE
+
+  // Registrace uživatele
   async function register(username, password) {
     try {
       const response = await fetch('/register', {
@@ -644,10 +646,11 @@
       }
     } catch (error) {
       showNotification('Chyba připojení k serveru', 'warning');
-      console.error('Registration error:', error);
+      console.error('Chyba registrace:', error);
     }
   }
 
+  // Přihlášení uživatele
   async function login(username, password) {
     try {
       const response = await fetch('/login', {
@@ -673,11 +676,12 @@
       }
     } catch (error) {
       showNotification('Chyba připojení k serveru', 'warning');
-      console.error('Login error:', error);
+      console.error('Chyba přihlášení:', error);
     }
   }
 
-  async function logout() {
+  // Odhlášení uživatele
+  function logout() {
     gameData.userId = null;
     elements.usernameDisplay.textContent = '';
     elements.authButtons.style.display = 'block';
@@ -686,6 +690,8 @@
   }
 
   let lastSaveTime = Date.now();
+  
+  // Uložení hry
   async function saveGame() {
     if (!gameData.userId) return;
     
@@ -703,13 +709,14 @@
       
       const data = await response.json();
       if (!data.success) {
-        console.error('Save failed');
+        console.error('Chyba při ukládání');
       }
     } catch (error) {
-      console.error('Save error:', error);
+      console.error('Chyba ukládání:', error);
     }
   }
 
+  // Načtení hry
   async function loadGame() {
     if (!gameData.userId) return;
     
@@ -725,10 +732,11 @@
       }
     } catch (error) {
       showNotification('Chyba připojení k serveru', 'warning');
-      console.error('Load error:', error);
+      console.error('Chyba načítání:', error);
     }
   }
 
+  // Koupě budovy
   async function buyBuilding(buildingType) {
     if (!gameData.userId) {
       showNotification('Pro nákup se musíš přihlásit', 'warning');
@@ -746,7 +754,7 @@
     gameData.crystals -= gameData[priceKey];
     gameData[countKey]++;
     
-    // Increase price (10% more each time)
+    // Zvýšení ceny o 10% s každým nákupem
     gameData[priceKey] = Math.floor(gameData[priceKey] * 1.1);
     
     updateUI();
@@ -754,6 +762,7 @@
     return true;
   }
 
+  // Vylepšení síly kliku
   async function upgradeClickPower() {
     if (!gameData.userId) {
       showNotification('Pro vylepšení se musíš přihlásit', 'warning');
@@ -768,7 +777,7 @@
     gameData.crystals -= gameData.priceClickPower;
     gameData.clickPower++;
     
-    // Increase price (20% more each time)
+    // Zvýšení ceny o 20% s každým vylepšením
     gameData.priceClickPower = Math.floor(gameData.priceClickPower * 1.2);
     
     updateUI();
@@ -776,6 +785,7 @@
     return true;
   }
 
+  // Provedení rebirthu
   async function doRebirth() {
     if (!gameData.userId) {
       showNotification('Pro rebirth se musíš přihlásit', 'warning');
@@ -799,6 +809,7 @@
       
       const data = await response.json();
       if (data.success) {
+        // Resetování hráče po rebirthu
         Object.assign(gameData, {
           crystals: 0,
           autoclickers: 0,
@@ -833,10 +844,11 @@
       }
     } catch (error) {
       showNotification('Chyba připojení k serveru', 'warning');
-      console.error('Rebirth error:', error);
+      console.error('Chyba rebirthu:', error);
     }
   }
 
+  // Vylepšení rebirth bonusu
   async function upgradeRebirthBonus(bonusType) {
     if (!gameData.userId) {
       showNotification('Pro upgrade se musíš přihlásit', 'warning');
@@ -878,10 +890,11 @@
       }
     } catch (error) {
       showNotification('Chyba připojení k serveru', 'warning');
-      console.error('Rebirth upgrade error:', error);
+      console.error('Chyba rebirth upgradu:', error);
     }
   }
 
+  // Získání luck bonusu
   async function claimLuckBonus() {
     if (!gameData.userId) {
       showNotification('Pro bonus se musíš přihlásit', 'warning');
@@ -918,10 +931,11 @@
       }
     } catch (error) {
       showNotification('Chyba připojení k serveru', 'warning');
-      console.error('Luck bonus error:', error);
+      console.error('Chyba luck bonusu:', error);
     }
   }
 
+  // Otevření mystery boxu
   async function openMysteryBox() {
     if (!gameData.userId) {
       showNotification('Pro otevření boxu se musíš přihlásit', 'warning');
@@ -965,10 +979,11 @@
       }
     } catch (error) {
       showNotification('Chyba připojení k serveru', 'warning');
-      console.error('Mystery box error:', error);
+      console.error('Chyba mystery boxu:', error);
     }
   }
 
+  // Načtení žebříčku
   async function loadLeaderboard(type = 'crystals') {
     try {
       const response = await fetch(`/leaderboard?type=${type}`);
@@ -994,7 +1009,7 @@
         
         elements.leaderboardContent.innerHTML = html;
         
-        // Update active tab
+        // Aktualizace aktivního tabu
         document.querySelectorAll('.tab-btn').forEach(btn => {
           btn.classList.toggle('active', btn.dataset.type === type);
         });
@@ -1003,11 +1018,13 @@
       }
     } catch (error) {
       elements.leaderboardContent.innerHTML = '<div class="error-message">Chyba připojení</div>';
-      console.error('Leaderboard error:', error);
+      console.error('Chyba žebříčku:', error);
     }
   }
 
-  // Event listeners
+  // NASTAVENÍ POSLOUCHAČŮ UDÁLOSTÍ
+
+  // Přihlašovací/registrační formuláře
   elements.showLogin.addEventListener('click', () => {
     elements.authForms.style.display = 'flex';
     elements.loginForm.style.display = 'block';
@@ -1032,6 +1049,7 @@
 
   elements.logoutBtn.addEventListener('click', logout);
 
+  // Odeslání formulářů
   elements.loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const username = elements.loginUsername.value.trim();
@@ -1046,6 +1064,7 @@
     await register(username, password);
   });
 
+  // Hlavní herní tlačítka
   elements.clickBtn.addEventListener('click', () => {
     gameData.crystals += gameData.clickPower;
     gameData.lifetime_crystals += gameData.clickPower;
@@ -1069,7 +1088,7 @@
     }
   });
 
-  // Building purchases
+  // Tlačítka pro nákup budov
   elements.buyAutoclickerBtn.addEventListener('click', () => buyBuilding('Autoclicker'));
   elements.buyFactoryBtn.addEventListener('click', () => buyBuilding('Factory'));
   elements.buyMineBtn.addEventListener('click', () => buyBuilding('Mine'));
@@ -1081,26 +1100,26 @@
   elements.buyVoidHarvesterBtn.addEventListener('click', () => buyBuilding('VoidHarvester'));
   elements.upgradeClickPowerBtn.addEventListener('click', upgradeClickPower);
 
-  // Rebirth
+  // Rebirth tlačítka
   elements.doRebirthBtn.addEventListener('click', doRebirth);
   elements.upgradeClickBonusBtn.addEventListener('click', () => upgradeRebirthBonus('click'));
   elements.upgradeProductionBonusBtn.addEventListener('click', () => upgradeRebirthBonus('production'));
   elements.upgradePointsBonusBtn.addEventListener('click', () => upgradeRebirthBonus('points'));
 
-  // Luck system
+  // Luck systém tlačítka
   elements.claimLuckBtn.addEventListener('click', claimLuckBonus);
   elements.openMysteryBoxBtn.addEventListener('click', openMysteryBox);
 
-  // Leaderboard tabs
+  // Taby žebříčku
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       loadLeaderboard(btn.dataset.type);
     });
   });
 
-  // Initialize
+  // INICIALIZACE HRY
   updateUI();
-  setInterval(gameLoop, 100); // 10 times per second
+  setInterval(gameLoop, 100); // Herní smyčka běží 10× za sekundu
 </script>
 </body>
 </html>
