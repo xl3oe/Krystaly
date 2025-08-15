@@ -740,7 +740,7 @@ def upgrade_rebirth():
             
             cursor.execute(f"""
                 UPDATE crystal_game_data SET
-                    {update_field}={update_field} + 1,
+                    {update_field}={update_field} + 35,
                     rebirthpoints=rebirthpoints - %s,
                     updated_at=CURRENT_TIMESTAMP
                 WHERE id=%s
