@@ -629,7 +629,11 @@ def rebirth():
             
             # Výpočet rebirth points
             if current_crystals > 0:
-                rebirth_points = max(1, math.floor(math.log10(current_crystals) * (1 + bonus_rebirth_points/100)))
+                rebirth_points = max(
+    1, 
+    math.floor((math.log10(current_crystals) + current_crystals / 1_000_000) * (1 + bonus_rebirth_points/100))
+)
+
             else:
                 rebirth_points = 1
             
