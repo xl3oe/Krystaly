@@ -106,16 +106,16 @@ def init_database():
                 voidharvesters INTEGER DEFAULT 0,
                 clickpower INTEGER DEFAULT 1,
                 totalclicks INTEGER DEFAULT 0,
-                priceautoclicker BIGINT DEFAULT 15,
-                pricefactory BIGINT DEFAULT 100,
-                pricemine BIGINT DEFAULT 1100,
-                pricerefinery BIGINT DEFAULT 12000,
-                pricequantumdrill BIGINT DEFAULT 130000,
-                pricemagicwell BIGINT DEFAULT 1400000,
-                pricestarforge BIGINT DEFAULT 20000000,
-                pricetimeaccelerator BIGINT DEFAULT 330000000,
-                pricevoidharvester BIGINT DEFAULT 5100000000,
-                priceclickpower BIGINT DEFAULT 100,
+                priceautoclicker BIGINT DEFAULT 5,
+                pricefactory BIGINT DEFAULT 50,
+                pricemine BIGINT DEFAULT 500,
+                pricerefinery BIGINT DEFAULT 5000,
+                pricequantumdrill BIGINT DEFAULT 50000,
+                pricemagicwell BIGINT DEFAULT 500000,
+                pricestarforge BIGINT DEFAULT 5000000,
+                pricetimeaccelerator BIGINT DEFAULT 50000000,
+                pricevoidharvester BIGINT DEFAULT 1000000000,
+                priceclickpower BIGINT DEFAULT 20,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 rebirthcount INTEGER DEFAULT 0,
@@ -126,9 +126,7 @@ def init_database():
                 lucklevel INTEGER DEFAULT 0,
                 mysteryboxes INTEGER DEFAULT 0,
                 lastluckbonus TIMESTAMP DEFAULT CURRENT_TIMESTAMP - INTERVAL '2 hours',
-                achievements TEXT DEFAULT '',
-                offline_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                golden_crystals INTEGER DEFAULT 0
+                achievements TEXT DEFAULT ''
             )
         """)
         
@@ -138,16 +136,14 @@ def init_database():
             ('starforges', 'INTEGER DEFAULT 0'), 
             ('timeaccelerators', 'INTEGER DEFAULT 0'),
             ('voidharvesters', 'INTEGER DEFAULT 0'),
-            ('pricemagicwell', 'BIGINT DEFAULT 1400000'),
-            ('pricestarforge', 'BIGINT DEFAULT 20000000'),
-            ('pricetimeaccelerator', 'BIGINT DEFAULT 330000000'),
-            ('pricevoidharvester', 'BIGINT DEFAULT 5100000000'),
+            ('pricemagicwell', 'BIGINT DEFAULT 500000'),
+            ('pricestarforge', 'BIGINT DEFAULT 5000000'),
+            ('pricetimeaccelerator', 'BIGINT DEFAULT 50000000'),
+            ('pricevoidharvester', 'BIGINT DEFAULT 1000000000'),
             ('lucklevel', 'INTEGER DEFAULT 0'),
             ('mysteryboxes', 'INTEGER DEFAULT 0'),
             ('lastluckbonus', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP - INTERVAL \'2 hours\''),
-            ('achievements', 'TEXT DEFAULT \'\''),
-            ('offline_time', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'),
-            ('golden_crystals', 'INTEGER DEFAULT 0')
+            ('achievements', 'TEXT DEFAULT \'\'')
         ]
         
         for column_name, column_def in new_columns:
@@ -155,21 +151,6 @@ def init_database():
                 cursor.execute(f"ALTER TABLE crystal_game_data ADD COLUMN IF NOT EXISTS {column_name} {column_def}")
             except Exception as e:
                 logger.info(f"Sloupec {column_name} již existuje nebo chyba: {e}")
-        
-        # Aktualizace cen pro existující hráče (pouze pokud mají původní hodnoty)
-        cursor.execute("""
-            UPDATE crystal_game_data SET
-                priceautoclicker = CASE WHEN priceautoclicker = 5 THEN 15 ELSE priceautoclicker END,
-                pricefactory = CASE WHEN pricefactory = 50 THEN 100 ELSE pricefactory END,
-                pricemine = CASE WHEN pricemine = 500 THEN 1100 ELSE pricemine END,
-                pricerefinery = CASE WHEN pricerefinery = 5000 THEN 12000 ELSE pricerefinery END,
-                pricequantumdrill = CASE WHEN pricequantumdrill = 50000 THEN 130000 ELSE pricequantumdrill END,
-                pricemagicwell = CASE WHEN pricemagicwell = 500000 THEN 1400000 ELSE pricemagicwell END,
-                pricestarforge = CASE WHEN pricestarforge = 5000000 THEN 20000000 ELSE pricestarforge END,
-                pricetimeaccelerator = CASE WHEN pricetimeaccelerator = 50000000 THEN 330000000 ELSE pricetimeaccelerator END,
-                pricevoidharvester = CASE WHEN pricevoidharvester = 1000000000 THEN 5100000000 ELSE pricevoidharvester END,
-                priceclickpower = CASE WHEN priceclickpower = 20 THEN 100 ELSE priceclickpower END
-        """)
         
         # Vytvoření indexů pro výkon
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_crystals ON crystal_game_data(crystals)")
@@ -340,8 +321,6 @@ def save_game():
                     bonusrebirthpoints=%s,
                     lucklevel=%s,
                     mysteryboxes=%s,
-                    golden_crystals=%s,
-                    offline_time=CURRENT_TIMESTAMP,
                     updated_at=CURRENT_TIMESTAMP
                 WHERE id=%s
             """, (
@@ -358,16 +337,16 @@ def save_game():
                 int(gd.get('voidHarvesters', 0)),
                 int(gd.get('clickPower', 1)),
                 int(gd.get('totalClicks', 0)),
-                int(gd.get('priceAutoclicker', 15)),
-                int(gd.get('priceFactory', 100)),
-                int(gd.get('priceMine', 1100)),
-                int(gd.get('priceRefinery', 12000)),
-                int(gd.get('priceQuantumDrill', 130000)),
-                int(gd.get('priceMagicWell', 1400000)),
-                int(gd.get('priceStarForge', 20000000)),
-                int(gd.get('priceTimeAccelerator', 330000000)),
-                int(gd.get('priceVoidHarvester', 5100000000)),
-                int(gd.get('priceClickPower', 100)),
+                int(gd.get('priceAutoclicker', 5)),
+                int(gd.get('priceFactory', 50)),
+                int(gd.get('priceMine', 500)),
+                int(gd.get('priceRefinery', 5000)),
+                int(gd.get('priceQuantumDrill', 50000)),
+                int(gd.get('priceMagicWell', 500000)),
+                int(gd.get('priceStarForge', 5000000)),
+                int(gd.get('priceTimeAccelerator', 50000000)),
+                int(gd.get('priceVoidHarvester', 1000000000)),
+                int(gd.get('priceClickPower', 20)),
                 int(gd.get('rebirthCount', 0)),
                 int(gd.get('rebirthPoints', 0)),
                 int(gd.get('bonusClickPower', 0)),
@@ -375,7 +354,6 @@ def save_game():
                 int(gd.get('bonusRebirthPoints', 0)),
                 int(gd.get('luckLevel', 0)),
                 int(gd.get('mysteryBoxes', 0)),
-                int(gd.get('goldenCrystals', 0)),
                 user_id
             ))
             conn.commit()
@@ -391,7 +369,7 @@ def save_game():
         logger.error(f"Chyba v ukládání hry: {e}")
         return jsonify({'success': False, 'message': 'Chyba serveru'}), 500
 
-# Načtení hry s offline výpočtem
+# Načtení hry
 @app.route('/load_game')
 def load_game():
     try:
@@ -427,16 +405,16 @@ def load_game():
                 'voidHarvesters': int(row.get('voidharvesters') or 0),
                 'clickPower': int(row.get('clickpower') or 1),
                 'totalClicks': int(row.get('totalclicks') or 0),
-                'priceAutoclicker': int(row.get('priceautoclicker') or 15),
-                'priceFactory': int(row.get('pricefactory') or 100),
-                'priceMine': int(row.get('pricemine') or 1100),
-                'priceRefinery': int(row.get('pricerefinery') or 12000),
-                'priceQuantumDrill': int(row.get('pricequantumdrill') or 130000),
-                'priceMagicWell': int(row.get('pricemagicwell') or 1400000),
-                'priceStarForge': int(row.get('pricestarforge') or 20000000),
-                'priceTimeAccelerator': int(row.get('pricetimeaccelerator') or 330000000),
-                'priceVoidHarvester': int(row.get('pricevoidharvester') or 5100000000),
-                'priceClickPower': int(row.get('priceclickpower') or 100),
+                'priceAutoclicker': int(row.get('priceautoclicker') or 5),
+                'priceFactory': int(row.get('pricefactory') or 50),
+                'priceMine': int(row.get('pricemine') or 500),
+                'priceRefinery': int(row.get('pricerefinery') or 5000),
+                'priceQuantumDrill': int(row.get('pricequantumdrill') or 50000),
+                'priceMagicWell': int(row.get('pricemagicwell') or 500000),
+                'priceStarForge': int(row.get('pricestarforge') or 5000000),
+                'priceTimeAccelerator': int(row.get('pricetimeaccelerator') or 50000000),
+                'priceVoidHarvester': int(row.get('pricevoidharvester') or 1000000000),
+                'priceClickPower': int(row.get('priceclickpower') or 20),
                 'rebirthCount': int(row.get('rebirthcount') or 0),
                 'rebirthPoints': int(row.get('rebirthpoints') or 0),
                 'bonusClickPower': int(row.get('bonusclickpower') or 0),
@@ -444,28 +422,8 @@ def load_game():
                 'bonusRebirthPoints': int(row.get('bonusrebirthpoints') or 0),
                 'luckLevel': int(row.get('lucklevel') or 0),
                 'mysteryBoxes': int(row.get('mysteryboxes') or 0),
-                'goldenCrystals': int(row.get('golden_crystals') or 0),
                 'lastLuckBonus': row.get('lastluckbonus')
             }
-
-            # Offline výpočet
-            offline_time = row.get('offline_time')
-            if offline_time:
-                now = datetime.now()
-                time_diff = (now - offline_time).total_seconds()
-                
-                # Maximálně 24 hodin offline produkce
-                if time_diff > 0 and time_diff <= 86400:  # 24 hodin
-                    cps = calculate_cps_from_data(game_data)
-                    offline_crystals = int(cps * time_diff * 0.1)  # 10% z normální produkce
-                    
-                    if offline_crystals > 0:
-                        game_data['crystals'] += offline_crystals
-                        game_data['lifetime_crystals'] += offline_crystals
-                        game_data['offline_bonus'] = {
-                            'crystals': offline_crystals,
-                            'hours': time_diff / 3600
-                        }
 
             return jsonify({'success': True, 'game_data': game_data})
         except Exception as e:
@@ -477,71 +435,6 @@ def load_game():
     except Exception as e:
         logger.error(f"Chyba v načítání hry: {e}")
         return jsonify({'success': False, 'message': 'Chyba serveru'}), 500
-
-def calculate_cps_from_data(data):
-    """Pomocná funkce pro výpočet CPS z game data"""
-    base_cps = (
-        data['autoclickers'] * 1 + 
-        data['factories'] * 5 + 
-        data['mines'] * 50 + 
-        data['refineries'] * 200 + 
-        data['quantumDrills'] * 1000 +
-        data['magicWells'] * 5000 +
-        data['starForges'] * 25000 +
-        data['timeAccelerators'] * 100000 +
-        data['voidHarvesters'] * 500000
-    )
-    return base_cps * (1 + data['bonusProduction'] / 100)
-
-# Golden Crystals endpoint
-@app.route('/claim_golden_crystal', methods=['POST'])
-def claim_golden_crystal():
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'success': False, 'message': 'Chybí data'}), 400
-            
-        user_id = data.get('user_id')
-        
-        if not user_id:
-            return jsonify({'success': False, 'message': 'Chybí user_id'}), 400
-        
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'success': False, 'message': 'Chyba databáze'}), 500
-            
-        cursor = conn.cursor()
-        
-        try:
-            # Přidáme golden crystal
-            cursor.execute("""
-                UPDATE crystal_game_data SET 
-                golden_crystals = golden_crystals + 1
-                WHERE id = %s
-                RETURNING golden_crystals
-            """, (user_id,))
-            
-            result = cursor.fetchone()
-            conn.commit()
-            
-            return jsonify({
-                'success': True,
-                'golden_crystals': result['golden_crystals']
-            })
-            
-        except Exception as e:
-            logger.error(f"Chyba golden crystal: {e}")
-            conn.rollback()
-            return jsonify({'success': False, 'message': 'Chyba při získávání golden crystal'}), 500
-        finally:
-            cursor.close()
-            return_db_connection(conn)
-    except Exception as e:
-        logger.error(f"Chyba v golden crystal: {e}")
-        return jsonify({'success': False, 'message': 'Chyba serveru'}), 500
-
-# Zbytek endpointů zůstává stejný...
-# (Mystery Box, Luck bonus, Rebirth, Upgrade rebirth, Leaderboard, Stats)
 
 # Mystery Box endpoint
 @app.route('/open_mystery_box', methods=['POST'])
@@ -569,12 +462,12 @@ def open_mystery_box():
             if not row or (row['mysteryboxes'] or 0) <= 0:
                 return jsonify({'success': False, 'message': 'Nemáš žádné mystery boxy!'}), 400
             
-            # Náhodné odměny - vyšší hodnoty
+            # Náhodné odměny
             rewards = [
-                {'type': 'crystals', 'amount': random.randint(10000, 100000), 'name': 'Křišťály'},
-                {'type': 'crystals', 'amount': random.randint(50000, 500000), 'name': 'Velké množství křišťálů'},
-                {'type': 'click_power', 'amount': random.randint(2, 10), 'name': 'Síla kliku'},
-                {'type': 'production_boost', 'amount': random.randint(100000, 1000000), 'name': 'Produkční boost'},
+                {'type': 'crystals', 'amount': random.randint(1000, 50000), 'name': 'Křišťály'},
+                {'type': 'crystals', 'amount': random.randint(10000, 100000), 'name': 'Velké množství křišťálů'},
+                {'type': 'click_power', 'amount': random.randint(1, 5), 'name': 'Síla kliku'},
+                {'type': 'production_boost', 'amount': random.randint(50000, 200000), 'name': 'Produkční boost'},
             ]
             
             reward = random.choice(rewards)
@@ -600,16 +493,13 @@ def open_mystery_box():
         except Exception as e:
             logger.error(f"Chyba mystery boxu: {e}")
             conn.rollback()
-            return jsonify({'success': False, 'message': 'Chyba při otevírání mystery boxu'}), 500
+            return jsonify({'success': False, 'message': 'Chyba při otvírání mystery boxu'}), 500
         finally:
             cursor.close()
             return_db_connection(conn)
     except Exception as e:
         logger.error(f"Chyba v mystery box: {e}")
         return jsonify({'success': False, 'message': 'Chyba serveru'}), 500
-
-# Zbytek kódu zůstává stejný...
-# (Luck bonus, Rebirth, Upgrade rebirth, Leaderboard, Stats, Graceful shutdown)
 
 # Luck bonus endpoint
 @app.route('/claim_luck_bonus', methods=['POST'])
@@ -655,7 +545,7 @@ def claim_luck_bonus():
                 return jsonify({'success': False, 'message': 'Nemáš žádné luck levely!'}), 400
             
             # Výpočet bonusu (čím vyšší level, tím větší bonus)
-            base_bonus = random.randint(1000, 10000)
+            base_bonus = random.randint(100, 1000)
             luck_multiplier = 1 + (luck_level * 0.5)  # každý level +50% bonusu
             total_bonus = int(base_bonus * luck_multiplier)
             
@@ -729,8 +619,8 @@ def rebirth():
             rebirth_count = int(row.get('rebirthcount') or 0)
             bonus_rebirth_points = int(row.get('bonusrebirthpoints') or 0)
             
-            # Výpočet potřebných křišťálů pro rebirth - exponenciální růst
-            required_crystals = 1000000 * (3 ** rebirth_count)
+            # Výpočet potřebných křišťálů pro rebirth
+            required_crystals = 100000 * (2 ** rebirth_count)
             
             if current_crystals < required_crystals:
                 return jsonify({
@@ -738,17 +628,18 @@ def rebirth():
                     'message': f'Potřebuješ alespoň {required_crystals:,} křišťálů pro rebirth!'
                 }), 400
             
-            # Výpočet rebirth points - více vybalancovaný
+            # Výpočet rebirth points
             if current_crystals > 0:
                 rebirth_points = max(
-                    1, 
-                    math.floor((math.log10(current_crystals / 100000) + current_crystals / 10_000_000) * (1 + bonus_rebirth_points/100))
-                )
+    1, 
+    math.floor((math.log10(current_crystals) + current_crystals / 1_000_000) * (1 + bonus_rebirth_points/100))
+)
+
             else:
                 rebirth_points = 1
             
-            # Šance na luck level (25% za rebirth)
-            luck_gained = 1 if random.randint(1, 100) <= 25 else 0
+            # Šance na luck level (10% za rebirth)
+            luck_gained = 1 if random.randint(1, 100) <= 35 else 0
 
             # Reset hráče + přidání bonusů
             cursor.execute("""
@@ -764,16 +655,16 @@ def rebirth():
                     timeaccelerators=0,
                     voidharvesters=0,
                     clickpower=1,
-                    priceautoclicker=15,
-                    pricefactory=100,
-                    pricemine=1100,
-                    pricerefinery=12000,
-                    pricequantumdrill=130000,
-                    pricemagicwell=1400000,
-                    pricestarforge=20000000,
-                    pricetimeaccelerator=330000000,
-                    pricevoidharvester=5100000000,
-                    priceclickpower=100,
+                    priceautoclicker=5,
+                    pricefactory=50,
+                    pricemine=500,
+                    pricerefinery=5000,
+                    pricequantumdrill=50000,
+                    pricemagicwell=500000,
+                    pricestarforge=5000000,
+                    pricetimeaccelerator=50000000,
+                    pricevoidharvester=1000000000,
+                    priceclickpower=20,
                     rebirthcount=rebirthcount + 1,
                     rebirthpoints=rebirthpoints + %s,
                     lucklevel=lucklevel + %s,
@@ -803,6 +694,7 @@ def rebirth():
     except Exception as e:
         logger.error(f"Chyba v rebirth: {e}")
         return jsonify({'success': False, 'message': 'Chyba serveru'}), 500
+
 
 # Upgrade rebirth bonusů
 @app.route('/upgrade_rebirth', methods=['POST'])
@@ -854,7 +746,7 @@ def upgrade_rebirth():
             
             cursor.execute(f"""
                 UPDATE crystal_game_data SET
-                    {update_field}={update_field} + 50,
+                    {update_field}={update_field} + 100,
                     rebirthpoints=rebirthpoints - %s,
                     updated_at=CURRENT_TIMESTAMP
                 WHERE id=%s
