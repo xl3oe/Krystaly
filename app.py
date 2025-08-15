@@ -493,7 +493,7 @@ def open_mystery_box():
         except Exception as e:
             logger.error(f"Chyba mystery boxu: {e}")
             conn.rollback()
-            return jsonify({'success': False, 'message': 'Chyba při otvírání mystery boxu'}), 500
+            return jsonify({'success': False, 'message': 'Chyba při otevírání mystery boxu'}), 500
         finally:
             cursor.close()
             return_db_connection(conn)
@@ -631,14 +631,13 @@ def rebirth():
             # Výpočet rebirth points
             if current_crystals > 0:
                 rebirth_points = max(
-    1, 
-    math.floor((math.log10(current_crystals) + current_crystals / 1_000_000) * (1 + bonus_rebirth_points/100))
-)
-
+                    1, 
+                    math.floor((math.log10(current_crystals) + current_crystals / 1_000_000) * (1 + bonus_rebirth_points/100))
+                )
             else:
                 rebirth_points = 1
             
-            # Šance na luck level (10% za rebirth)
+            # Šance na luck level (35% za rebirth)
             luck_gained = 1 if random.randint(1, 100) <= 35 else 0
 
             # Reset hráče + přidání bonusů
@@ -694,7 +693,6 @@ def rebirth():
     except Exception as e:
         logger.error(f"Chyba v rebirth: {e}")
         return jsonify({'success': False, 'message': 'Chyba serveru'}), 500
-
 
 # Upgrade rebirth bonusů
 @app.route('/upgrade_rebirth', methods=['POST'])
@@ -772,55 +770,58 @@ def upgrade_rebirth():
         logger.error(f"Chyba v upgrade rebirth: {e}")
         return jsonify({'success': False, 'message': 'Chyba serveru'}), 500
 
-# Endpoint pro žebříček
-# Leaderboard endpoint
+# Leaderboard endpoint - opravený
 @app.route('/leaderboard')
 def leaderboard():
-    sort_type = request.args.get('type', 'crystals')
-
-    # Mapování typů na SQL výrazy
-    valid_sorts = {
-        'crystals': 'crystals',
-        'cps': '(autoclickers*1 + factories*5 + mines*50 + refineries*200 + quantumdrills*1000 + magicwells*5000 + starforges*25000 + timeaccelerators*100000 + voidharvesters*500000)',
-        'clicks': 'totalclicks',
-        'buildings': '(autoclickers + factories + mines + refineries + quantumdrills + magicwells + starforges + timeaccelerators + voidharvesters)',
-        'rebirth': 'rebirthcount',
-        'luck': 'lucklevel'
-    }
-
-    # Ověření platnosti typu
-    if sort_type not in valid_sorts:
-        sort_type = 'crystals'
-
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({'success': False, 'message': 'Chyba databáze'}), 500
-
-    cursor = conn.cursor()
     try:
-        cursor.execute(f"""
-            SELECT username, {valid_sorts[sort_type]} AS value
-            FROM crystal_game_data
-            ORDER BY value DESC
-            LIMIT 50
-        """)
-        rows = cursor.fetchall()
+        sort_type = request.args.get('type', 'crystals')
 
-        # Vrátíme seznam ve formátu vhodném pro frontend
-        leaderboard_list = [
-            {'username': r['username'], 'value': int(r['value'] or 0)}
-            for r in rows
-        ]
+        # Mapování typů na SQL výrazy
+        valid_sorts = {
+            'crystals': 'crystals',
+            'cps': '(autoclickers*1 + factories*5 + mines*50 + refineries*200 + quantumdrills*1000 + magicwells*5000 + starforges*25000 + timeaccelerators*100000 + voidharvesters*500000)',
+            'clicks': 'totalclicks',
+            'buildings': '(autoclickers + factories + mines + refineries + quantumdrills + magicwells + starforges + timeaccelerators + voidharvesters)',
+            'rebirth': 'rebirthcount',
+            'luck': 'lucklevel'
+        }
 
-        return jsonify({'success': True, 'leaderboard': leaderboard_list})
+        # Ověření platnosti typu
+        if sort_type not in valid_sorts:
+            sort_type = 'crystals'
 
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'success': False, 'message': 'Chyba databáze'}), 500
+
+        cursor = conn.cursor()
+        try:
+            cursor.execute(f"""
+                SELECT username, {valid_sorts[sort_type]} AS value
+                FROM crystal_game_data
+                ORDER BY value DESC
+                LIMIT 50
+            """)
+            rows = cursor.fetchall()
+
+            # Vrátíme seznam ve formátu vhodném pro frontend
+            leaderboard_list = [
+                {'username': r['username'], 'value': int(r['value'] or 0)}
+                for r in rows
+            ]
+
+            return jsonify({'success': True, 'leaderboard': leaderboard_list})
+
+        except Exception as e:
+            logger.error(f"Chyba načítání žebříčku: {e}")
+            return jsonify({'success': False, 'message': 'Chyba načítání žebříčku'}), 500
+        finally:
+            cursor.close()
+            return_db_connection(conn)
+    
     except Exception as e:
-        logger.error(f"Chyba načítání žebříčku: {e}")
-        return jsonify({'success': False, 'message': 'Chyba načítání žebříčku'}), 500
-    finally:
-        cursor.close()
-        return_db_connection(conn)
-
+        logger.error(f"Chyba v leaderboard: {e}")
+        return jsonify({'success': False, 'message': 'Chyba serveru'}), 500
 
 # Statistiky pro admina
 @app.route('/stats')
