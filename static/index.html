@@ -413,6 +413,9 @@
     leaderboardContent: document.getElementById('leaderboardContent')
   };
 
+  // Automatické ukládání - rychlejší frekvence pro lepší UX
+  let autoSaveInterval = null;
+
   // API functions
   async function apiCall(endpoint, method = 'GET', data = null) {
     try {
@@ -469,7 +472,7 @@
         // Načtení hráčova postupu
         await loadGame();
         
-        // Spuštění pravidelného ukládání
+        // Spuštění pravidelného ukládání - každé 3 sekundy pro lepší UX
         startAutoSave();
       }
     } catch (error) {
@@ -504,8 +507,9 @@
   }
 
   function startAutoSave() {
-    // Automatické ukládání každých 10 sekund
-    setInterval(saveGame, 10000);
+    // Automatické ukládání každé 3 sekundy pro okamžité ukládání změn
+    if (autoSaveInterval) clearInterval(autoSaveInterval);
+    autoSaveInterval = setInterval(saveGame, 3000);
     
     // Ukládání při zavření stránky
     window.addEventListener('beforeunload', saveGame);
@@ -513,6 +517,8 @@
 
   function logout() {
     saveGame(); // Uložit před odhlášením
+    
+    if (autoSaveInterval) clearInterval(autoSaveInterval);
     
     gameData.userId = null;
     Object.assign(gameData, {
@@ -770,6 +776,8 @@
     gameData[priceKey] = Math.floor(gameData[priceKey] * 1.15);
     
     updateUI();
+    // OKAMŽITÉ ULOŽENÍ po nákupu
+    saveGame();
     showNotification(`Koupil jsi ${buildingType}!`, 'success');
     return true;
   }
@@ -787,6 +795,8 @@
     gameData.priceClickPower = Math.floor(gameData.priceClickPower * 1.2);
     
     updateUI();
+    // OKAMŽITÉ ULOŽENÍ po vylepšení
+    saveGame();
     showNotification('Vylepšil jsi sílu kliku!', 'success');
     return true;
   }
