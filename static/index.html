@@ -273,7 +273,7 @@
   <div id="leaderboard">
     <div class="leaderboard-tabs">
       <button class="tab-btn active" data-type="crystals">Křišťály</button>
-            <button class="tab-btn" data-type="cps">CPS</button>
+      <button class="tab-btn" data-type="cps">CPS</button>
       <button class="tab-btn" data-type="clicks">Kliky</button>
       <button class="tab-btn" data-type="buildings">Budovy</button>
       <button class="tab-btn" data-type="rebirth">Rebirthy</button>
@@ -459,7 +459,7 @@
     // Update rebirth section
     const requiredRebirth = 100000 * Math.pow(2, gameData.rebirthCount);
     elements.rebirthRequired.textContent = formatNumber(requiredRebirth);
-    const rebirthGain = Math.floor(Math.log10(gameData.crystals) * (1 + gameData.bonusRebirthPoints/100);
+    const rebirthGain = Math.floor(Math.log10(gameData.crystals) * (1 + gameData.bonusRebirthPoints/100));
     elements.rebirthGain.textContent = rebirthGain;
     elements.doRebirthBtn.disabled = gameData.crystals < requiredRebirth;
     
@@ -577,7 +577,8 @@
       elements.buyVoidHarvesterBtn.disabled = true;
     }
     
-    // Click power upgrade
+    // Basic building buttons
+    elements.buyAutoclickerBtn.disabled = gameData.crystals < gameData.priceAutoclicker;
     elements.upgradeClickPowerBtn.disabled = gameData.crystals < gameData.priceClickPower;
   }
 
@@ -591,7 +592,7 @@
     if (num >= 1000) {
       return (num / 1000).toFixed(2) + 'K';
     }
-    return num.toString();
+    return Math.floor(num).toString();
   }
 
   function showNotification(message, type = 'success', duration = 3000) {
@@ -605,82 +606,40 @@
     }, duration);
   }
 
-  // Game loop
-  function gameLoop() {
-    if (!gameData.userId) return;
-    
-    const cps = calculateCPS();
-    if (cps > 0) {
-      gameData.crystals += cps / 10;
-      gameData.lifetime_crystals += cps / 10;
-      updateUI();
-    }
-    
-    // Automatické ukládání každých 30 sekund
-    if (Date.now() - lastSaveTime > 30000) {
-      saveGame();
-      lastSaveTime = Date.now();
-    }
+  // Simulované API funkce (protože nemáme server)
+  function simulateOfflineGame() {
+    // Pro offline verzi, jen ukážeme notifikaci
+    showNotification('Offline verze - data se ukládají lokálně', 'info');
   }
 
-  // API FUNKCE
-
-  // Registrace uživatele
   async function register(username, password) {
-    try {
-      const response = await fetch('/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
-      });
-      
-      const data = await response.json();
-      if (data.success) {
-        showNotification('Registrace úspěšná! Nyní se přihlaste.', 'success');
-        elements.registerForm.style.display = 'none';
-        elements.loginForm.style.display = 'block';
-      } else {
-        showNotification(data.message || 'Registrace selhala', 'warning');
-      }
-    } catch (error) {
-      showNotification('Chyba připojení k serveru', 'warning');
-      console.error('Chyba registrace:', error);
+    // Simulace registrace
+    if (!username || !password) {
+      showNotification('Zadej uživatelské jméno a heslo', 'warning');
+      return;
     }
+    
+    showNotification('Registrace úspěšná! (simulace)', 'success');
+    elements.registerForm.style.display = 'none';
+    elements.loginForm.style.display = 'block';
   }
 
-  // Přihlášení uživatele
   async function login(username, password) {
-    try {
-      const response = await fetch('/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
-      });
-      
-      const data = await response.json();
-      if (data.success) {
-        gameData.userId = data.user_id;
-        elements.usernameDisplay.textContent = username;
-        elements.authButtons.style.display = 'none';
-        elements.logoutBtn.style.display = 'block';
-        elements.authForms.style.display = 'none';
-        
-        await loadGame();
-        showNotification('Přihlášení úspěšné!', 'success');
-      } else {
-        showNotification(data.message || 'Přihlášení selhalo', 'warning');
-      }
-    } catch (error) {
-      showNotification('Chyba připojení k serveru', 'warning');
-      console.error('Chyba přihlášení:', error);
+    // Simulace přihlášení
+    if (!username || !password) {
+      showNotification('Zadej uživatelské jméno a heslo', 'warning');
+      return;
     }
+    
+    gameData.userId = 'offline_user';
+    elements.usernameDisplay.textContent = username;
+    elements.authButtons.style.display = 'none';
+    elements.logoutBtn.style.display = 'block';
+    elements.authForms.style.display = 'none';
+    
+    showNotification('Přihlášení úspěšné! (offline režim)', 'success');
   }
 
-  // Odhlášení uživatele
   function logout() {
     gameData.userId = null;
     elements.usernameDisplay.textContent = '';
@@ -689,60 +648,7 @@
     showNotification('Odhlášení úspěšné', 'success');
   }
 
-  let lastSaveTime = Date.now();
-  
-  // Uložení hry
-  async function saveGame() {
-    if (!gameData.userId) return;
-    
-    try {
-      const response = await fetch('/save_game', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: gameData.userId,
-          game_data: gameData
-        }),
-      });
-      
-      const data = await response.json();
-      if (!data.success) {
-        console.error('Chyba při ukládání');
-      }
-    } catch (error) {
-      console.error('Chyba ukládání:', error);
-    }
-  }
-
-  // Načtení hry
-  async function loadGame() {
-    if (!gameData.userId) return;
-    
-    try {
-      const response = await fetch(`/load_game?user_id=${gameData.userId}`);
-      const data = await response.json();
-      
-      if (data.success) {
-        Object.assign(gameData, data.game_data);
-        updateUI();
-      } else {
-        showNotification('Načtení hry selhalo', 'warning');
-      }
-    } catch (error) {
-      showNotification('Chyba připojení k serveru', 'warning');
-      console.error('Chyba načítání:', error);
-    }
-  }
-
-  // Koupě budovy
-  async function buyBuilding(buildingType) {
-    if (!gameData.userId) {
-      showNotification('Pro nákup se musíš přihlásit', 'warning');
-      return false;
-    }
-    
+  function buyBuilding(buildingType) {
     const priceKey = `price${buildingType}`;
     const countKey = buildingType.toLowerCase();
     
@@ -754,21 +660,15 @@
     gameData.crystals -= gameData[priceKey];
     gameData[countKey]++;
     
-    // Zvýšení ceny o 10% s každým nákupem
-    gameData[priceKey] = Math.floor(gameData[priceKey] * 1.1);
+    // Zvýšení ceny o 15% s každým nákupem
+    gameData[priceKey] = Math.floor(gameData[priceKey] * 1.15);
     
     updateUI();
-    saveGame();
+    showNotification(`Koupil jsi ${buildingType}!`, 'success');
     return true;
   }
 
-  // Vylepšení síly kliku
-  async function upgradeClickPower() {
-    if (!gameData.userId) {
-      showNotification('Pro vylepšení se musíš přihlásit', 'warning');
-      return false;
-    }
-    
+  function upgradeClickPower() {
     if (gameData.crystals < gameData.priceClickPower) {
       showNotification('Nemáš dost křišťálů!', 'warning');
       return false;
@@ -781,250 +681,21 @@
     gameData.priceClickPower = Math.floor(gameData.priceClickPower * 1.2);
     
     updateUI();
-    saveGame();
+    showNotification('Vylepšil jsi sílu kliku!', 'success');
     return true;
   }
 
-  // Provedení rebirthu
-  async function doRebirth() {
-    if (!gameData.userId) {
-      showNotification('Pro rebirth se musíš přihlásit', 'warning');
-      return;
-    }
-    
-    const requiredRebirth = 100000 * Math.pow(2, gameData.rebirthCount);
-    if (gameData.crystals < requiredRebirth) {
-      showNotification(`Potřebuješ alespoň ${formatNumber(requiredRebirth)} křišťálů pro rebirth!`, 'warning');
-      return;
-    }
-    
-    try {
-      const response = await fetch('/rebirth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ user_id: gameData.userId }),
-      });
-      
-      const data = await response.json();
-      if (data.success) {
-        // Resetování hráče po rebirthu
-        Object.assign(gameData, {
-          crystals: 0,
-          autoclickers: 0,
-          factories: 0,
-          mines: 0,
-          refineries: 0,
-          quantumDrills: 0,
-          magicWells: 0,
-          starForges: 0,
-          timeAccelerators: 0,
-          voidHarvesters: 0,
-          clickPower: 1,
-          priceAutoclicker: 5,
-          priceFactory: 50,
-          priceMine: 500,
-          priceRefinery: 5000,
-          priceQuantumDrill: 50000,
-          priceMagicWell: 500000,
-          priceStarForge: 5000000,
-          priceTimeAccelerator: 50000000,
-          priceVoidHarvester: 1000000000,
-          priceClickPower: 20,
-          rebirthCount: data.rebirthCount,
-          rebirthPoints: data.rebirthPoints,
-          luckLevel: data.luckLevel
-        });
-        
-        showNotification(`Rebirth úspěšný! Získal jsi ${data.gainedPoints} bodů${data.luckGained ? ' a +1 Luck Level!' : ''}`, 'success');
-        updateUI();
-      } else {
-        showNotification(data.message || 'Rebirth selhal', 'warning');
-      }
-    } catch (error) {
-      showNotification('Chyba připojení k serveru', 'warning');
-      console.error('Chyba rebirthu:', error);
+  // Game loop
+  function gameLoop() {
+    const cps = calculateCPS();
+    if (cps > 0) {
+      gameData.crystals += cps / 10; // Dělíme 10, protože loop běží 10x za sekundu
+      gameData.lifetime_crystals += cps / 10;
+      updateUI();
     }
   }
 
-  // Vylepšení rebirth bonusu
-  async function upgradeRebirthBonus(bonusType) {
-    if (!gameData.userId) {
-      showNotification('Pro upgrade se musíš přihlásit', 'warning');
-      return;
-    }
-    
-    if (gameData.rebirthPoints < 10) {
-      showNotification('Potřebuješ alespoň 10 rebirth bodů!', 'warning');
-      return;
-    }
-    
-    try {
-      const response = await fetch('/upgrade_rebirth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: gameData.userId,
-          type: bonusType
-        }),
-      });
-      
-      const data = await response.json();
-      if (data.success) {
-        if (bonusType === 'click') {
-          gameData.bonusClickPower = data.newValue;
-        } else if (bonusType === 'production') {
-          gameData.bonusProduction = data.newValue;
-        } else {
-          gameData.bonusRebirthPoints = data.newValue;
-        }
-        
-        gameData.rebirthPoints = data.remainingPoints;
-        showNotification(`Upgrade úspěšný! Nová úroveň: ${data.newValue}`, 'success');
-        updateUI();
-      } else {
-        showNotification(data.message || 'Upgrade selhal', 'warning');
-      }
-    } catch (error) {
-      showNotification('Chyba připojení k serveru', 'warning');
-      console.error('Chyba rebirth upgradu:', error);
-    }
-  }
-
-  // Získání luck bonusu
-  async function claimLuckBonus() {
-    if (!gameData.userId) {
-      showNotification('Pro bonus se musíš přihlásit', 'warning');
-      return;
-    }
-    
-    if (gameData.luckLevel <= 0) {
-      showNotification('Nemáš žádné Luck Levely!', 'warning');
-      return;
-    }
-    
-    try {
-      const response = await fetch('/claim_luck_bonus', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ user_id: gameData.userId }),
-      });
-      
-      const data = await response.json();
-      if (data.success) {
-        gameData.crystals += data.bonus;
-        gameData.lifetime_crystals += data.bonus;
-        if (data.got_mystery_box) {
-          gameData.mysteryBoxes += 1;
-          showNotification(`Získal jsi ${formatNumber(data.bonus)} křišťálů a Mystery Box!`, 'success');
-        } else {
-          showNotification(`Získal jsi ${formatNumber(data.bonus)} křišťálů!`, 'success');
-        }
-        updateUI();
-      } else {
-        showNotification(data.message || 'Nelze získat bonus', 'warning');
-      }
-    } catch (error) {
-      showNotification('Chyba připojení k serveru', 'warning');
-      console.error('Chyba luck bonusu:', error);
-    }
-  }
-
-  // Otevření mystery boxu
-  async function openMysteryBox() {
-    if (!gameData.userId) {
-      showNotification('Pro otevření boxu se musíš přihlásit', 'warning');
-      return;
-    }
-    
-    if (gameData.mysteryBoxes <= 0) {
-      showNotification('Nemáš žádné Mystery Boxy!', 'warning');
-      return;
-    }
-    
-    try {
-      const response = await fetch('/open_mystery_box', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ user_id: gameData.userId }),
-      });
-      
-      const data = await response.json();
-      if (data.success) {
-        gameData.mysteryBoxes -= 1;
-        
-        if (data.reward.type === 'crystals') {
-          gameData.crystals += data.reward.amount;
-          gameData.lifetime_crystals += data.reward.amount;
-          showNotification(`Získal jsi ${formatNumber(data.reward.amount)} ${data.reward.name}!`, 'success');
-        } else if (data.reward.type === 'click_power') {
-          gameData.clickPower += data.reward.amount;
-          showNotification(`Získal jsi +${data.reward.amount} síly kliku!`, 'success');
-        } else if (data.reward.type === 'production_boost') {
-          gameData.crystals += data.reward.amount;
-          gameData.lifetime_crystals += data.reward.amount;
-          showNotification(`Získal jsi ${formatNumber(data.reward.amount)} ${data.reward.name}!`, 'success');
-        }
-        
-        updateUI();
-      } else {
-        showNotification(data.message || 'Nelze otevřít box', 'warning');
-      }
-    } catch (error) {
-      showNotification('Chyba připojení k serveru', 'warning');
-      console.error('Chyba mystery boxu:', error);
-    }
-  }
-
-  // Načtení žebříčku
-  async function loadLeaderboard(type = 'crystals') {
-    try {
-      const response = await fetch(`/leaderboard?type=${type}`);
-      const data = await response.json();
-      
-      if (data.success) {
-        let html = '';
-        
-        if (data.leaderboard.length === 0) {
-          html = '<div class="error-message">Žádná data k zobrazení</div>';
-        } else {
-          data.leaderboard.forEach((item, index) => {
-            const rankClass = index === 0 ? 'first' : index === 1 ? 'second' : index === 2 ? 'third' : '';
-            html += `
-              <div class="leaderboard-item">
-                <div class="rank ${rankClass}">${item.rank}.</div>
-                <div class="username">${item.username}</div>
-                <div class="value">${formatNumber(item.value)}</div>
-              </div>
-            `;
-          });
-        }
-        
-        elements.leaderboardContent.innerHTML = html;
-        
-        // Aktualizace aktivního tabu
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-          btn.classList.toggle('active', btn.dataset.type === type);
-        });
-      } else {
-        elements.leaderboardContent.innerHTML = '<div class="error-message">Chyba při načítání žebříčku</div>';
-      }
-    } catch (error) {
-      elements.leaderboardContent.innerHTML = '<div class="error-message">Chyba připojení</div>';
-      console.error('Chyba žebříčku:', error);
-    }
-  }
-
-  // NASTAVENÍ POSLOUCHAČŮ UDÁLOSTÍ
-
-  // Přihlašovací/registrační formuláře
+  // Event listeners
   elements.showLogin.addEventListener('click', () => {
     elements.authForms.style.display = 'flex';
     elements.loginForm.style.display = 'block';
@@ -1049,7 +720,16 @@
 
   elements.logoutBtn.addEventListener('click', logout);
 
-  // Odeslání formulářů
+  // Close auth forms when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!elements.authForms.contains(e.target) && 
+        !elements.showLogin.contains(e.target) && 
+        !elements.showRegister.contains(e.target)) {
+      elements.authForms.style.display = 'none';
+    }
+  });
+
+  // Form submissions
   elements.loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const username = elements.loginUsername.value.trim();
@@ -1064,13 +744,19 @@
     await register(username, password);
   });
 
-  // Hlavní herní tlačítka
+  // Main game buttons
   elements.clickBtn.addEventListener('click', () => {
-    gameData.crystals += gameData.clickPower;
-    gameData.lifetime_crystals += gameData.clickPower;
+    const clickValue = gameData.clickPower * (1 + gameData.bonusClickPower / 100);
+    gameData.crystals += clickValue;
+    gameData.lifetime_crystals += clickValue;
     gameData.totalClicks++;
     updateUI();
-    saveGame();
+    
+    // Visual feedback for click
+    elements.clickBtn.style.transform = 'scale(0.95)';
+    setTimeout(() => {
+      elements.clickBtn.style.transform = 'scale(1)';
+    }, 100);
   });
 
   elements.shopToggle.addEventListener('click', () => {
@@ -1084,11 +770,11 @@
   elements.leaderboardToggle.addEventListener('click', () => {
     elements.leaderboard.style.display = elements.leaderboard.style.display === 'none' ? 'block' : 'none';
     if (elements.leaderboard.style.display === 'block') {
-      loadLeaderboard();
+      elements.leaderboardContent.innerHTML = '<div class="info">Žebříček je dostupný pouze v online verzi</div>';
     }
   });
 
-  // Tlačítka pro nákup budov
+  // Building purchase buttons
   elements.buyAutoclickerBtn.addEventListener('click', () => buyBuilding('Autoclicker'));
   elements.buyFactoryBtn.addEventListener('click', () => buyBuilding('Factory'));
   elements.buyMineBtn.addEventListener('click', () => buyBuilding('Mine'));
@@ -1100,26 +786,139 @@
   elements.buyVoidHarvesterBtn.addEventListener('click', () => buyBuilding('VoidHarvester'));
   elements.upgradeClickPowerBtn.addEventListener('click', upgradeClickPower);
 
-  // Rebirth tlačítka
-  elements.doRebirthBtn.addEventListener('click', doRebirth);
-  elements.upgradeClickBonusBtn.addEventListener('click', () => upgradeRebirthBonus('click'));
-  elements.upgradeProductionBonusBtn.addEventListener('click', () => upgradeRebirthBonus('production'));
-  elements.upgradePointsBonusBtn.addEventListener('click', () => upgradeRebirthBonus('points'));
+  // Rebirth system (simplified for offline)
+  elements.doRebirthBtn.addEventListener('click', () => {
+    const requiredCrystals = 100000 * Math.pow(2, gameData.rebirthCount);
+    if (gameData.crystals < requiredCrystals) {
+      showNotification(`Potřebuješ ${formatNumber(requiredCrystals)} křišťálů pro rebirth!`, 'warning');
+      return;
+    }
+    
+    const rebirthPoints = Math.floor(Math.log10(gameData.crystals));
+    
+    // Reset progress but keep rebirth bonuses
+    Object.assign(gameData, {
+      crystals: 0,
+      autoclickers: 0,
+      factories: 0,
+      mines: 0,
+      refineries: 0,
+      quantumDrills: 0,
+      magicWells: 0,
+      starForges: 0,
+      timeAccelerators: 0,
+      voidHarvesters: 0,
+      clickPower: 1,
+      priceAutoclicker: 5,
+      priceFactory: 50,
+      priceMine: 500,
+      priceRefinery: 5000,
+      priceQuantumDrill: 50000,
+      priceMagicWell: 500000,
+      priceStarForge: 5000000,
+      priceTimeAccelerator: 50000000,
+      priceVoidHarvester: 1000000000,
+      priceClickPower: 20,
+      rebirthCount: gameData.rebirthCount + 1,
+      rebirthPoints: gameData.rebirthPoints + rebirthPoints,
+      luckLevel: gameData.luckLevel + (Math.random() < 0.1 ? 1 : 0) // 10% chance for luck
+    });
+    
+    showNotification(`Rebirth úspěšný! Získal jsi ${rebirthPoints} bodů!`, 'success');
+    updateUI();
+  });
 
-  // Luck systém tlačítka
-  elements.claimLuckBtn.addEventListener('click', claimLuckBonus);
-  elements.openMysteryBoxBtn.addEventListener('click', openMysteryBox);
+  // Rebirth upgrades
+  elements.upgradeClickBonusBtn.addEventListener('click', () => {
+    if (gameData.rebirthPoints >= 10) {
+      gameData.rebirthPoints -= 10;
+      gameData.bonusClickPower += 10; // +10% per upgrade
+      showNotification('Vylepšil jsi bonus síly kliku!', 'success');
+      updateUI();
+    }
+  });
 
-  // Taby žebříčku
+  elements.upgradeProductionBonusBtn.addEventListener('click', () => {
+    if (gameData.rebirthPoints >= 10) {
+      gameData.rebirthPoints -= 10;
+      gameData.bonusProduction += 10; // +10% per upgrade
+      showNotification('Vylepšil jsi bonus produkce!', 'success');
+      updateUI();
+    }
+  });
+
+  elements.upgradePointsBonusBtn.addEventListener('click', () => {
+    if (gameData.rebirthPoints >= 10) {
+      gameData.rebirthPoints -= 10;
+      gameData.bonusRebirthPoints += 10; // +10% per upgrade
+      showNotification('Vylepšil jsi bonus rebirth bodů!', 'success');
+      updateUI();
+    }
+  });
+
+  // Luck system
+  elements.claimLuckBtn.addEventListener('click', () => {
+    if (gameData.luckLevel <= 0) {
+      showNotification('Nemáš žádné Luck Levely!', 'warning');
+      return;
+    }
+    
+    const bonus = Math.floor(Math.random() * 1000 * gameData.luckLevel);
+    gameData.crystals += bonus;
+    gameData.lifetime_crystals += bonus;
+    
+    if (Math.random() < 0.1 * gameData.luckLevel) { // Chance for mystery box
+      gameData.mysteryBoxes++;
+      showNotification(`Luck bonus: ${formatNumber(bonus)} křišťálů + Mystery Box!`, 'success');
+    } else {
+      showNotification(`Luck bonus: ${formatNumber(bonus)} křišťálů!`, 'success');
+    }
+    
+    updateUI();
+  });
+
+  elements.openMysteryBoxBtn.addEventListener('click', () => {
+    if (gameData.mysteryBoxes <= 0) {
+      showNotification('Nemáš žádné Mystery Boxy!', 'warning');
+      return;
+    }
+    
+    gameData.mysteryBoxes--;
+    
+    const rewards = [
+      { type: 'crystals', amount: Math.floor(Math.random() * 50000 + 1000), name: 'Křišťály' },
+      { type: 'clickPower', amount: Math.floor(Math.random() * 3 + 1), name: 'Síla kliku' },
+      { type: 'production', amount: Math.floor(Math.random() * 10000 + 2000), name: 'Production boost' }
+    ];
+    
+    const reward = rewards[Math.floor(Math.random() * rewards.length)];
+    
+    if (reward.type === 'crystals' || reward.type === 'production') {
+      gameData.crystals += reward.amount;
+      gameData.lifetime_crystals += reward.amount;
+    } else if (reward.type === 'clickPower') {
+      gameData.clickPower += reward.amount;
+    }
+    
+    showNotification(`Mystery Box: +${reward.amount} ${reward.name}!`, 'success');
+    updateUI();
+  });
+
+  // Tab switching for leaderboard
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      loadLeaderboard(btn.dataset.type);
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      elements.leaderboardContent.innerHTML = '<div class="info">Žebříček je dostupný pouze v online verzi</div>';
     });
   });
 
-  // INICIALIZACE HRY
+  // Initialization
   updateUI();
-  setInterval(gameLoop, 100); // Herní smyčka běží 10× za sekundu
+  setInterval(gameLoop, 100); // Game loop runs 10 times per second
+  
+  // Show initial info
+  showNotification('Vítej v Křišťálové hře! Toto je offline verze.', 'info', 5000);
 </script>
 </body>
 </html>
