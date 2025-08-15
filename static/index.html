@@ -968,11 +968,18 @@ elements.leaderboardToggle.addEventListener('click', () => {
   });
 
   elements.leaderboardToggle.addEventListener('click', () => {
-    elements.leaderboard.style.display = elements.leaderboard.style.display === 'none' ? 'block' : 'none';
-    if (elements.leaderboard.style.display === 'block') {
-      loadLeaderboard('crystals');
+  const isHidden = elements.leaderboard.style.display === 'none' || elements.leaderboard.style.display === '';
+  
+  if (isHidden) {
+    elements.leaderboard.style.display = 'block';
+    const activeTab = document.querySelector('.tab-btn.active') || document.querySelector('.tab-btn');
+    if (activeTab) {
+      loadLeaderboard(activeTab.dataset.type);
     }
-  });
+  } else {
+    elements.leaderboard.style.display = 'none';
+  }
+});
 
   // Building purchase buttons
   elements.buyAutoclickerBtn.addEventListener('click', () => buyBuilding('Autoclicker'));
