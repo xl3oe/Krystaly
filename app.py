@@ -773,126 +773,54 @@ def upgrade_rebirth():
         return jsonify({'success': False, 'message': 'Chyba serveru'}), 500
 
 # Endpoint pro žebříček
+# Leaderboard endpoint
 @app.route('/leaderboard')
 def leaderboard():
-    try:
-        leaderboard_type = request.args.get('type', 'crystals')
-        
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'success': False, 'message': 'Chyba databáze'}), 500
-            
-        cursor = conn.cursor()
-        
-        try:
-            # Definujeme různé typy žebříčků
-            if leaderboard_type == 'crystals':
-                query = """
-                SELECT username, COALESCE(crystals, 0) as value 
-                FROM crystal_game_data 
-                WHERE COALESCE(crystals, 0) > 0 
-                ORDER BY COALESCE(crystals, 0) DESC 
-                LIMIT 10
-                """
-                label = "Křišťály"
-            elif leaderboard_type == 'cps':
-                # CPS kalkulace
-                query = """
-                SELECT username, 
-                       (COALESCE(autoclickers, 0) * 1 + 
-                        COALESCE(factories, 0) * 5 + 
-                        COALESCE(mines, 0) * 50 + 
-                        COALESCE(refineries, 0) * 200 + 
-                        COALESCE(quantumdrills, 0) * 1000 +
-                        COALESCE(magicwells, 0) * 5000 +
-                        COALESCE(starforges, 0) * 25000 +
-                        COALESCE(timeaccelerators, 0) * 100000 +
-                        COALESCE(voidharvesters, 0) * 500000) as value
-                FROM crystal_game_data 
-                WHERE (COALESCE(autoclickers, 0) * 1 + 
-                      COALESCE(factories, 0) * 5 + 
-                      COALESCE(mines, 0) * 50 + 
-                      COALESCE(refineries, 0) * 200 + 
-                      COALESCE(quantumdrills, 0) * 1000 +
-                      COALESCE(magicwells, 0) * 5000 +
-                      COALESCE(starforges, 0) * 25000 +
-                      COALESCE(timeaccelerators, 0) * 100000 +
-                      COALESCE(voidharvesters, 0) * 500000) > 0
-                ORDER BY value DESC 
-                LIMIT 10
-                """
-                label = "CPS"
-            elif leaderboard_type == 'clicks':
-                query = """
-                SELECT username, COALESCE(totalclicks, 0) as value 
-                FROM crystal_game_data 
-                WHERE COALESCE(totalclicks, 0) > 0 
-                ORDER BY COALESCE(totalclicks, 0) DESC 
-                LIMIT 10
-                """
-                label = "Celkové kliky"
-            elif leaderboard_type == 'buildings':
-                query = """
-                SELECT username, 
-                       (COALESCE(autoclickers, 0) + COALESCE(factories, 0) + COALESCE(mines, 0) + 
-                        COALESCE(refineries, 0) + COALESCE(quantumdrills, 0) + COALESCE(magicwells, 0) +
-                        COALESCE(starforges, 0) + COALESCE(timeaccelerators, 0) + COALESCE(voidharvesters, 0)) as value
-                FROM crystal_game_data 
-                WHERE (COALESCE(autoclickers, 0) + COALESCE(factories, 0) + COALESCE(mines, 0) + 
-                      COALESCE(refineries, 0) + COALESCE(quantumdrills, 0) + COALESCE(magicwells, 0) +
-                      COALESCE(starforges, 0) + COALESCE(timeaccelerators, 0) + COALESCE(voidharvesters, 0)) > 0
-                ORDER BY value DESC 
-                LIMIT 10
-                """
-                label = "Celkové budovy"
-            elif leaderboard_type == 'rebirth':
-                query = """
-                SELECT username, COALESCE(rebirthcount, 0) as value 
-                FROM crystal_game_data 
-                WHERE COALESCE(rebirthcount, 0) > 0 
-                ORDER BY COALESCE(rebirthcount, 0) DESC 
-                LIMIT 10
-                """
-                label = "Rebirthy"
-            elif leaderboard_type == 'luck':
-                query = """
-                SELECT username, COALESCE(lucklevel, 0) as value 
-                FROM crystal_game_data 
-                WHERE COALESCE(lucklevel, 0) > 0 
-                ORDER BY COALESCE(lucklevel, 0) DESC 
-                LIMIT 10
-                """
-                label = "Luck Level"
-            else:
-                return jsonify({'success': False, 'message': 'Neplatný typ žebříčku'}), 400
+    sort_type = request.args.get('type', 'crystals')
 
-            cursor.execute(query)
-            results = cursor.fetchall()
-            
-            leaderboard_data = []
-            for i, row in enumerate(results, 1):
-                leaderboard_data.append({
-                    'rank': i,
-                    'username': row['username'],
-                    'value': int(row['value']) if row['value'] is not None else 0
-                })
-            
-            return jsonify({
-                'success': True, 
-                'leaderboard': leaderboard_data,
-                'label': label,
-                'type': leaderboard_type
-            })
-            
-        except Exception as e:
-            logger.error(f"Chyba žebříčku: {e}")
-            return jsonify({'success': False, 'message': 'Chyba při načítání žebříčku'}), 500
-        finally:
-            cursor.close()
-            return_db_connection(conn)
+    # Mapování typů na SQL výrazy
+    valid_sorts = {
+        'crystals': 'crystals',
+        'cps': '(autoclickers*1 + factories*5 + mines*50 + refineries*200 + quantumdrills*1000 + magicwells*5000 + starforges*25000 + timeaccelerators*100000 + voidharvesters*500000)',
+        'clicks': 'totalclicks',
+        'buildings': '(autoclickers + factories + mines + refineries + quantumdrills + magicwells + starforges + timeaccelerators + voidharvesters)',
+        'rebirth': 'rebirthcount',
+        'luck': 'lucklevel'
+    }
+
+    # Ověření platnosti typu
+    if sort_type not in valid_sorts:
+        sort_type = 'crystals'
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Chyba databáze'}), 500
+
+    cursor = conn.cursor()
+    try:
+        cursor.execute(f"""
+            SELECT username, {valid_sorts[sort_type]} AS value
+            FROM crystal_game_data
+            ORDER BY value DESC
+            LIMIT 50
+        """)
+        rows = cursor.fetchall()
+
+        # Vrátíme seznam ve formátu vhodném pro frontend
+        leaderboard_list = [
+            {'username': r['username'], 'value': int(r['value'] or 0)}
+            for r in rows
+        ]
+
+        return jsonify({'success': True, 'leaderboard': leaderboard_list})
+
     except Exception as e:
-        logger.error(f"Chyba v leaderboard: {e}")
-        return jsonify({'success': False, 'message': 'Chyba serveru'}), 500
+        logger.error(f"Chyba načítání žebříčku: {e}")
+        return jsonify({'success': False, 'message': 'Chyba načítání žebříčku'}), 500
+    finally:
+        cursor.close()
+        return_db_connection(conn)
+
 
 # Statistiky pro admina
 @app.route('/stats')
